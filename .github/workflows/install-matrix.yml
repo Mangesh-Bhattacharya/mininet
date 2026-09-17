@@ -1,0 +1,42 @@
+name: install-matrix
+
+# Runs util/install.sh inside clean containers of each supported
+# distribution, then brings up real Mininet networks using the runner's
+# kernel. This is how Debian (and releases GitHub has no runner for)
+# are tested.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  distro:
+    name: install.sh on ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12", "debian:13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load kernel modules on the host
+        run: sudo modprobe -a openvswitch sch_htb sch_netem
+      - name: Install and test Mininet in ${{ matrix.image }}
+        run: |
+          docker run --rm --privileged \
+            -v /lib/modules:/lib/modules:ro \
+            -v "$PWD:/src:ro" \
+            "${{ matrix.image }}" bash -c '
+              set -ex
+              cp -a /src /root/mininet
+              cd /root/mininet
+              util/install.sh -nv
+              ovs-vsctl -t 2 show || /usr/share/openvswitch/scripts/ovs-ctl start
+              mn --version
+              mn-doctor
+              mn --test pingall
+              mn --switch lxbr --controller none --test pingall
+              MININET_OVS_DATAPATH=user mn --test pingall
+              mn --topo linear,3 --link tc,bw=5,delay=2ms --test iperf
+            '

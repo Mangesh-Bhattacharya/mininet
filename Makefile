@@ -2,12 +2,14 @@ MININET = mininet/*.py
 TEST = mininet/test/*.py
 EXAMPLES = mininet/examples/*.py
 MN = bin/mn
-PYTHON ?= python
+DOCTOR = bin/mn-doctor
+PYTHON ?= python3
 PYMN = $(PYTHON) -B bin/mn
-BIN = $(MN)
+BIN = $(MN) $(DOCTOR)
 PYSRC = $(MININET) $(TEST) $(EXAMPLES) $(BIN)
 MNEXEC = mnexec
 MANPAGES = mn.1 mnexec.1
+PEP8 ?= $(shell command -v pycodestyle || command -v pep8)
 P8IGN = E251,E201,E302,E202,E126,E127,E203,E226,E402,W504,W503,E731
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
@@ -29,7 +31,7 @@ codecheck: $(PYSRC)
 	pyflakes3 $(PYSRC) || pyflakes $(PYSRC)
 	pylint --rcfile=.pylint $(PYSRC)
 #	Exclude miniedit from pep8 checking for now
-	pep8 --repeat --ignore=$(P8IGN) `ls $(PYSRC) | grep -v miniedit.py`
+	$(PEP8) --ignore=$(P8IGN) `ls $(PYSRC) | grep -v miniedit.py`
 
 errcheck: $(PYSRC)
 	-echo "Running check for errors only"

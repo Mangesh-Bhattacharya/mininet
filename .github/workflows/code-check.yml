@@ -1,0 +1,20 @@
+name: code-check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  code-check:
+    name: Mininet Code Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install code check dependencies
+        run: python -m pip install pyflakes pycodestyle pylint==2.15.7 pexpect
+      - name: Run code check
+        run: make codecheck PYTHON=python

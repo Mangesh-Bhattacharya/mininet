@@ -1,0 +1,67 @@
+name: launchers
+
+# Mininet itself needs Linux, and GitHub's macOS/Windows runners can't
+# run Linux containers. These jobs check what students on those systems
+# actually run first: the Docker launchers and mn-doctor's guidance.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck scripts/mininet-docker.sh docker/entrypoint.sh docker/sudo-shim.sh
+
+  macos:
+    name: macOS launcher + doctor
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Launcher runs under macOS's bash 3.2
+        run: |
+          /bin/bash --version | head -1
+          /bin/bash scripts/mininet-docker.sh --help
+          out=$(/bin/bash scripts/mininet-docker.sh --dry-run)
+          echo "$out"; echo "$out" | grep -q -- '--privileged'
+          out=$(/bin/bash scripts/mininet-docker.sh --dry-run mn --test pingall)
+          echo "$out"; echo "$out" | grep -q 'mn --test pingall$'
+      - name: mn-doctor explains how to run Mininet on macOS
+        run: |
+          set +e
+          out=$(PYTHONPATH=. python3 bin/mn-doctor); code=$?
+          echo "$out"
+          [ "$code" -eq 1 ] && echo "$out" | grep -q 'requires Linux'
+
+  windows:
+    name: Windows launcher + doctor
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PowerShell 7
+        shell: pwsh
+        run: |
+          $out = ./scripts/mininet-docker.ps1 -DryRun mn --test pingall
+          $out
+          if ($out -notmatch '--privileged' -or $out -notmatch 'mn --test pingall$') { exit 1 }
+      - name: Windows PowerShell 5.1 via .cmd wrapper
+        shell: cmd
+        run: |
+          scripts\mininet-docker.cmd -DryRun mn --test pingall | findstr /C:"--privileged"
+      - name: Git Bash launcher
+        shell: bash
+        run: |
+          out=$(scripts/mininet-docker.sh --dry-run mn --test pingall)
+          echo "$out"; echo "$out" | grep -q -- '-v [A-Za-z]:/'
+      - name: mn-doctor explains how to run Mininet on Windows
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = '.'
+          $out = python bin/mn-doctor
+          $code = $LASTEXITCODE
+          $out
+          if ($code -ne 1 -or -not ($out -match 'requires Linux')) { exit 1 }

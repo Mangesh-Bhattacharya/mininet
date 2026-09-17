@@ -1,0 +1,90 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Import Mininet modules (no packaging/distutils available)
+        run: python -c "import mininet.net, mininet.node, mininet.cli, mininet.doctor; print('imports ok')"
+      - name: Doctor unit tests
+        run: python -m unittest mininet.test.test_doctor -v
+
+  native:
+    name: Mininet on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mininet and Open vSwitch with install.sh
+        run: |
+          sudo apt-get update -qq
+          util/install.sh -nv
+      - name: Disable slow udevd
+        run: sudo systemctl stop systemd-udevd
+             systemd-udevd-kernel.socket
+             systemd-udevd-control.socket
+             || echo "couldn't disable udevd"
+      - name: mn-doctor
+        run: sudo mn-doctor
+      - name: Sanity test (OVS kernel datapath + default controller)
+        run: sudo mn --test pingall
+      - name: Sanity test (OVS userspace datapath, as on Docker Desktop)
+        run: sudo env MININET_OVS_DATAPATH=user mn --test pingall
+      - name: Sanity test (Linux bridge, no controller)
+        run: sudo mn --switch lxbr --controller none --test pingall
+      - name: Sanity test (tree topology, TCLink)
+        run: sudo mn --topo tree,depth=2,fanout=2 --link tc,bw=10,delay=5ms --test pingall
+      - name: Install core test dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq vlan tshark
+          util/install.sh -f
+      - name: Run core tests
+        run: sudo python3 mininet/test/runner.py -v
+
+  examples:
+    name: Example tests (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mininet, Open vSwitch and the reference switch
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq vlan
+          util/install.sh -nvf
+      - name: Disable slow udevd
+        run: sudo systemctl stop systemd-udevd
+             systemd-udevd-kernel.socket
+             systemd-udevd-control.socket
+             || echo "couldn't disable udevd"
+      - name: Run examples tests
+        run: sudo python3 examples/test/runner.py -v
+
+  tutorial-vm:
+    name: Tutorial VM script (ubuntu-24.04)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Run util/vm/install-mininet-vm.sh on a fresh runner
+        run: |
+          curl -fsSL -o install-mininet-vm.sh \
+            "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/util/vm/install-mininet-vm.sh"
+          chmod +x install-mininet-vm.sh
+          MININET_REPO="https://github.com/${{ github.repository }}.git" \
+            ./install-mininet-vm.sh ${{ github.sha }}

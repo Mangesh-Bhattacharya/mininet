@@ -1,0 +1,35 @@
+#cloud-config
+# Mininet VM via cloud-init. Works with Multipass (Windows, macOS
+# Intel/Apple Silicon, Linux) and any cloud that accepts user data.
+#
+#   multipass launch 24.04 --name mininet --cpus 2 --memory 2G --disk 10G \
+#       --timeout 1800 --cloud-init util/vm/cloud-init.yaml
+#   multipass shell mininet
+#   sudo mn --test pingall
+#
+# Set MININET_REPO/MININET_BRANCH below to install a different fork/branch.
+
+package_update: true
+packages:
+  - git
+
+write_files:
+  - path: /usr/local/sbin/install-mininet
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e
+      MININET_REPO=https://github.com/Mangesh-Bhattacharya/mininet.git
+      MININET_BRANCH=master
+      USER_NAME=$(getent passwd 1000 | cut -d: -f1)
+      USER_HOME=$(getent passwd 1000 | cut -d: -f6)
+      cd "$USER_HOME"
+      sudo -u "$USER_NAME" -H git clone --branch "$MININET_BRANCH" \
+          "$MININET_REPO" mininet
+      cd mininet
+      sudo -u "$USER_NAME" -H util/install.sh -nv
+      mn-doctor || true
+      echo "Mininet install finished" > /var/log/mininet-install.done
+
+runcmd:
+  - [ bash, -c, "/usr/local/sbin/install-mininet > /var/log/mininet-install.log 2>&1" ]

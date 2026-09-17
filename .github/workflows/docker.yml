@@ -1,0 +1,85 @@
+name: docker
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/mangesh-bhattacharya/mininet
+
+jobs:
+  test:
+    name: Build and test image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: mininet:test
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - name: Userspace datapath (what Docker Desktop on Windows/macOS uses)
+        run: |
+          docker run --rm --privileged -e MININET_OVS_DATAPATH=user mininet:test \
+            bash -c 'mn-doctor; mn --test pingall && sudo mn --topo tree,2,2 --test pingall'
+      - name: Kernel datapath (Linux hosts)
+        run: |
+          if sudo modprobe openvswitch; then
+            docker run --rm --privileged -v /lib/modules:/lib/modules:ro \
+              mininet:test mn --test pingall
+          else
+            echo "::notice::openvswitch module unavailable on this runner; skipped"
+          fi
+      - name: Launcher script
+        run: scripts/mininet-docker.sh --image mininet:test --no-mount mn --switch lxbr --controller none --test pingall
+
+  publish:
+    name: Publish multi-arch image to GHCR
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha,format=short
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=gha,scope=amd64
+            type=gha,scope=arm64

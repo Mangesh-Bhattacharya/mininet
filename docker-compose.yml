@@ -1,0 +1,17 @@
+# docker compose run --rm mininet                 interactive shell
+# docker compose run --rm mininet mn --test pingall
+#
+# On Linux hosts, uncomment the /lib/modules mount so the container can
+# use the host's fast openvswitch kernel datapath. Docker Desktop
+# (Windows/macOS) doesn't need it: OVS falls back to its userspace datapath.
+services:
+  mininet:
+    image: ghcr.io/mangesh-bhattacharya/mininet:latest
+    build: .
+    privileged: true
+    hostname: mininet
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./workspace:/workspace
+      # - /lib/modules:/lib/modules:ro

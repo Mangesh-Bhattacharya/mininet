@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+mn-doctor: check whether this machine can run Mininet.
+See mininet/doctor.py for details.
+"""
+
+import sys
+
+from mininet.doctor import main
+
+if __name__ == '__main__':
+    sys.exit( main() )

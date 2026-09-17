@@ -9,6 +9,10 @@ at faq.mininet.org, and the mininet-discuss mailing list.
 For bug reports, please fill in the following information in detail,
 and also feel free to include additional information such as debug
 output from mn -v debug, etc.
+
+For installation problems, please include the output of:
+    sudo mn-doctor --json
+and say how you run Mininet (native Linux, WSL 2, Docker, or which VM).
 -->
 ### Expected/Desired Behavior:
 
