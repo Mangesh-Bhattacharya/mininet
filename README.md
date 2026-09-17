@@ -194,6 +194,9 @@ run on every platform.
 * [Getting started](docs/getting-started.md) and
   [Troubleshooting](docs/troubleshooting.md)
 * The original [`INSTALL`](INSTALL) notes
+* Research: [Mininet-AI feasibility study](docs/research/mininet-ai.md)
+  (AI controllers, LLM network agents, RL environments and AI tutoring
+  on top of Mininet)
 * Upstream documentation: the [Mininet website](http://mininet.org),
   [walkthrough](http://mininet.org/walkthrough/),
   [Python API introduction](https://github.com/mininet/mininet/wiki/Introduction-to-Mininet)

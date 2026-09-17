@@ -209,7 +209,7 @@ function mn_deps {
     if [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
         $install gcc make socat psmisc xterm openssh-clients iperf \
             iproute telnet python-setuptools libcgroup-tools \
-            ethtool help2man net-tools bridge-utils
+            ethtool help2man net-tools bridge-utils iputils
         $install ${PYPKG}-pyflakes pylint ${PYPKG}-pep8-naming \
             ${PYPKG}-pexpect
     elif [ "$DIST" = "SUSE LINUX"  ]; then
@@ -234,7 +234,8 @@ function mn_deps {
         fi
 
         $install gcc make socat psmisc xterm ssh iperf telnet \
-                 ethtool help2man net-tools bridge-utils ${PYPKG}-tk
+                 ethtool help2man net-tools bridge-utils iputils-ping \
+                 ${PYPKG}-tk
 
         # Code check tools are only needed for development, and their
         # package names keep changing (pep8 is now pycodestyle), so
