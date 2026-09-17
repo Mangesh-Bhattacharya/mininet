@@ -19,7 +19,7 @@ LABEL org.opencontainers.image.title="Mininet" \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl ethtool gcc help2man iperf iperf3 iproute2 \
+        bridge-utils ca-certificates curl ethtool gcc help2man iperf iperf3 iproute2 \
         iputils-ping kmod libc6-dev make net-tools nano openvswitch-switch \
         openvswitch-testcontroller procps psmisc python3 python3-packaging \
         python3-pexpect python3-pip socat tcpdump telnet vim-tiny xterm \

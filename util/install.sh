@@ -144,6 +144,11 @@ function version_le {
 
 # Attempt to detect Python version (Python 3 preferred)
 PYTHON=${PYTHON:-python3}
+# Minimal container images (ubuntu, debian) ship without Python
+if [ "$DIST" = "Ubuntu" -o "$DIST" = "Debian" ] &&
+   ! command -v $PYTHON &> /dev/null && ! command -v python3 &> /dev/null; then
+    $install python3
+fi
 PRINTVERSION='import sys; print(sys.version_info)'
 PYTHON_VERSION=unknown
 for python in $PYTHON python3 python python2; do
@@ -204,7 +209,7 @@ function mn_deps {
     if [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
         $install gcc make socat psmisc xterm openssh-clients iperf \
             iproute telnet python-setuptools libcgroup-tools \
-            ethtool help2man net-tools
+            ethtool help2man net-tools bridge-utils
         $install ${PYPKG}-pyflakes pylint ${PYPKG}-pep8-naming \
             ${PYPKG}-pexpect
     elif [ "$DIST" = "SUSE LINUX"  ]; then
@@ -229,7 +234,7 @@ function mn_deps {
         fi
 
         $install gcc make socat psmisc xterm ssh iperf telnet \
-                 ethtool help2man net-tools ${PYPKG}-tk
+                 ethtool help2man net-tools bridge-utils ${PYPKG}-tk
 
         # Code check tools are only needed for development, and their
         # package names keep changing (pep8 is now pycodestyle), so
@@ -297,9 +302,14 @@ function of {
     # Patch controller to handle more than 16 switches
     patch -p1 < $REPO_DIR/util/openflow-patches/controller.patch
 
+    # glibc 2.38+ declares strlcpy() itself: rename OpenFlow's copy.
+    # gcc 10+ defaults to -fno-common, which this old code relies on.
+    grep -rlw strlcpy --include='*.[ch]' . | \
+        xargs -r sed -i 's/\bstrlcpy\b/of_strlcpy/g'
+
     # Resume the install:
     ./boot.sh
-    ./configure
+    ./configure CFLAGS="-g -O2 -fcommon"
     make
     sudo make install
     cd $BUILD_DIR
@@ -769,10 +779,12 @@ net.ipv6.conf.lo.disable_ipv6 = 1' | sudo tee -a /etc/sysctl.conf > /dev/null
 
     # Install tcpdump, cmd-line packet dump tool.  Also install gitk,
     # a graphical git history viewer.
-    $install tcpdump gitk
+    $install tcpdump
+    $install gitk || echo "Skipping gitk"
 
     # Install common text editors
-    $install vim nano emacs
+    $install vim nano || echo "Skipping editors"
+    $install emacs || echo "Skipping emacs"
 
     # Install NTP (replaced by ntpsec/timesyncd on newer releases)
     $install ntp || $install systemd-timesyncd || echo "Skipping NTP"

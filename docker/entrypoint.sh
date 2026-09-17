@@ -12,9 +12,12 @@ OVS_CTL=/usr/share/openvswitch/scripts/ovs-ctl
 
 log() { echo "[mininet] $*" >&2; }
 
-if [ ! -w /proc/sys/net ]; then
-    log "WARNING: container is not privileged; Mininet will not work."
-    log "Run it with: docker run --privileged ..."
+# Mininet needs to create veth pairs, which requires --privileged
+if ip link add mn-chk0 type veth peer name mn-chk1 > /dev/null 2>&1; then
+    ip link delete mn-chk0 > /dev/null 2>&1 || true
+else
+    log "WARNING: cannot create network interfaces; Mininet will not work."
+    log "Run the container with: docker run --privileged ..."
 fi
 
 mkdir -p /var/run/openvswitch /var/log/openvswitch

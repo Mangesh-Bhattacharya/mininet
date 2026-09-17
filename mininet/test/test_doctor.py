@@ -55,7 +55,7 @@ class FakeEnv( object ):
         return ( 3, 12 )
 
 
-BASE_COMMANDS = [ 'mnexec', 'ip', 'ping', 'tc' ]
+BASE_COMMANDS = [ 'mnexec', 'ip', 'ping', 'tc', 'brctl' ]
 BASE_FILES = [ '/proc/self/ns/net', '/sys/module/bridge',
                '/sys/module/sch_htb', '/sys/module/sch_netem' ]
 
@@ -151,6 +151,14 @@ class TestDoctor( unittest.TestCase ):
         podman = FakeEnv( files=[ '/run/.containerenv' ] )
         self.assertEqual( detectEnvironment( podman ), 'container' )
         self.assertEqual( detectEnvironment( FakeEnv() ), 'native' )
+
+    def testLinuxBridgeNeedsBrctl( self ):
+        "--switch lxbr is only suggested when brctl is installed"
+        env = fullEnv( commands=[ 'mnexec', 'ip', 'ping', 'tc',
+                                  'ovs-vsctl' ], results={} )
+        _where, checks, suggestion = runChecks( env )
+        self.assertEqual( statuses( checks )[ 'bridge' ], WARN )
+        self.assertIsNone( suggestion )
 
     def testSuggestNothingWorks( self ):
         "No switch available means no suggestion"

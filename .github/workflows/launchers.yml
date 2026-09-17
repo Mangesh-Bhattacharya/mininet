@@ -65,3 +65,4 @@ jobs:
           $code = $LASTEXITCODE
           $out
           if ($code -ne 1 -or -not ($out -match 'requires Linux')) { exit 1 }
+          exit 0

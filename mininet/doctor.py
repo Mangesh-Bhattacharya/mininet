@@ -189,8 +189,14 @@ def checkController( env, add ):
 def checkKernelFeatures( env, add ):
     "Linux bridge and traffic control; return bridge available?"
     bridge = moduleAvailable( env, 'bridge' )
-    add( 'bridge', OK if bridge else WARN,
-         'Linux bridge %savailable' % ( '' if bridge else 'not ' ) )
+    if not bridge:
+        add( 'bridge', WARN, 'Linux bridge not available' )
+    elif not env.which( 'brctl' ):
+        add( 'bridge', WARN, 'brctl not found: --switch lxbr will not work',
+             'Install bridge-utils' )
+        bridge = False
+    else:
+        add( 'bridge', OK, 'Linux bridge available' )
     shaping = [ m for m in ( 'sch_htb', 'sch_netem' )
                 if not moduleAvailable( env, m ) ]
     if not env.which( 'tc' ):
