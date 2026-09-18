@@ -2,8 +2,15 @@ name: code-check
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  # A newer commit cancels runs for older commits on the same branch/PR
+  # (never the weekly scheduled runs)
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
