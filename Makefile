@@ -9,7 +9,7 @@ PYMN = $(PYTHON) -B bin/mn
 BIN = $(MN) $(DOCTOR) $(LAB)
 PYSRC = $(MININET) $(TEST) $(EXAMPLES) $(BIN)
 MNEXEC = mnexec
-MANPAGES = mn.1 mnexec.1
+MANPAGES = mn.1 mnexec.1 mn-doctor.1 mn-config.1 mn-gui.1
 PEP8 ?= $(shell command -v pycodestyle || command -v pep8)
 P8IGN = E251,E201,E302,E202,E126,E127,E203,E226,E402,W504,W503,E731,E275,E741
 PREFIX ?= /usr
@@ -82,6 +82,21 @@ man: $(MANPAGES)
 mn.1: $(MN)
 	PYTHONPATH=. help2man -N -n "create a Mininet network." \
 	--no-discard-stderr "$(PYMN)" -o $@
+
+# The fork's tools print help but have no --version flag of their own
+MNVERSION = $(shell PYTHONPATH=. $(PYMN) --version 2>&1)
+
+mn-doctor.1: $(DOCTOR)
+	PYTHONPATH=. help2man -N -n "check whether this machine can run Mininet." \
+	--version-string="$(MNVERSION)" --no-discard-stderr "$(PYTHON) -B $<" -o $@
+
+mn-config.1: bin/mn-config
+	PYTHONPATH=. help2man -N -n "create, check and run Mininet lab configurations." \
+	--version-string="$(MNVERSION)" --no-discard-stderr "$(PYTHON) -B $<" -o $@
+
+mn-gui.1: bin/mn-gui
+	PYTHONPATH=. help2man -N -n "browser GUI for Mininet lab configurations." \
+	--version-string="$(MNVERSION)" --no-discard-stderr "$(PYTHON) -B $<" -o $@
 
 mnexec.1: mnexec
 	help2man -N -n "execution utility for Mininet." \
