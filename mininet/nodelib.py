@@ -98,9 +98,13 @@ class NAT( Node ):
             info( '*** Adding "' + line.strip() + '" to ' + cfile + '\n' )
             with open( cfile, 'a' ) as f:
                 f.write( line )
-            # Probably need to restart network manager to be safe -
-            # hopefully this won't disconnect you
-            self.cmd( 'service network-manager restart || netplan apply' )
+        # Ask NetworkManager, if it is running, to leave this interface
+        # alone. (Restarting it or running 'netplan apply' reconfigured
+        # every interface on the machine: slow, and it could disconnect
+        # you; on Ubuntu 24.04 'netplan apply' could take minutes.)
+        state = self.cmd( 'systemctl is-active NetworkManager 2>/dev/null' )
+        if state.strip() == 'active':
+            self.cmd( 'nmcli device set', intf, 'managed no' )
 
     # pylint: disable=arguments-differ
     def config( self, **params ):
