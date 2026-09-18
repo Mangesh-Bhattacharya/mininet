@@ -166,8 +166,24 @@ jobs:
              systemd-udevd-kernel.socket
              systemd-udevd-control.socket
              || echo "couldn't disable udevd"
-      - name: Run examples tests
-        run: sudo python3 examples/test/runner.py -v
+      - name: Run examples tests (each file under a time limit)
+        timeout-minutes: 75
+        run: |
+          # One file at a time, so a hung example can't stall the job and
+          # the log says exactly which one failed
+          failed=""
+          for t in examples/test/test_*.py; do
+            echo "::group::$t"
+            if ! sudo timeout --kill-after=30 600 python3 "$t" -v; then
+              failed="$failed $t"
+            fi
+            sudo mn -c > /dev/null 2>&1 || true
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::failed or timed out:$failed"
+            exit 1
+          fi
 
   tutorial-vm:
     name: Tutorial VM script (ubuntu-24.04)
