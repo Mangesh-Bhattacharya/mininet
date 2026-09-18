@@ -96,7 +96,7 @@ classic Mininet tutorial VM (Mininet, Open vSwitch, Wireshark with the
 OpenFlow dissector, POX, passwordless sudo, hostname `mininet-vm`):
 
 ```bash
-wget https://raw.githubusercontent.com/Mangesh-Bhattacharya/mininet/master/util/vm/install-mininet-vm.sh
+wget https://raw.githubusercontent.com/Mangesh-Bhattacharya/mininet/main/util/vm/install-mininet-vm.sh
 bash install-mininet-vm.sh
 ```
 

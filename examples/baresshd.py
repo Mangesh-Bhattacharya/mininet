@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 "This example doesn't use OpenFlow, but attempts to run sshd in a namespace."
 

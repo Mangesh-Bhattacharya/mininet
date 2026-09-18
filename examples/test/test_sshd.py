@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for sshd.py
@@ -10,7 +10,7 @@ from mininet.clean import sh
 
 class testSSHD( unittest.TestCase ):
 
-    opts = [ '\(yes/no\)\?', 'refused', 'Welcome|\$|#', pexpect.EOF, pexpect.TIMEOUT ]
+    opts = [ r'\(yes/no\)\?', 'refused', r'Welcome|\$|#', pexpect.EOF, pexpect.TIMEOUT ]
 
     def connected( self, ip ):
         "Log into ssh server, check banner, then exit"
@@ -38,7 +38,7 @@ class testSSHD( unittest.TestCase ):
         sh( 'mkdir /tmp/ssh' )
         sh( "ssh-keygen -t rsa -P '' -f /tmp/ssh/test_rsa" )
         sh( 'cat /tmp/ssh/test_rsa.pub >> /tmp/ssh/authorized_keys' )
-        cmd = ( 'python -m mininet.examples.sshd -D '
+        cmd = ( 'python3 -m mininet.examples.sshd -D '
                 '-o AuthorizedKeysFile=/tmp/ssh/authorized_keys '
                 '-o StrictModes=no -o UseDNS=no -u0' )
         # run example with custom sshd args

@@ -118,23 +118,17 @@ like to contribute an installation script, we would welcome it!)
 3.1.3 Python 3 and Python 2 support
 
    Mininet supports Python 3 and Python 2. By default, `install.sh`
-   will use whatever `python` is on your system.  To specify a
-   specific version of Python, you can set the PYTHON environment
-   variable:
+   uses `python3`. To use a specific Python 3 interpreter, set the
+   PYTHON environment variable:
 
-       PYTHON=python3 util/install.sh -fnv
+       PYTHON=python3.12 util/install.sh -fnv
 
-   You can install Mininet for both Python 3 and Python 2:
-
-       PYTHON=python2 util/install.sh -fnv
-       PYTHON=python3 util/install.sh -n
-
-   Whichever version was installed last will be the default for `mn`.
-   As long as Mininet is installed for the appropriate version of
-   Python, you can run it using that version of Python:
+   Python 2 reached end of life in 2020 and is no longer supported;
+   Mininet in this fork requires Python 3.9 or newer. As long as
+   Mininet is installed for a Python interpreter, you can run `mn`
+   with it explicitly:
 
        python3 `which mn`
-       python2 `which mn`
 
    To install ALL of the software which we use for OpenFlow tutorials,
    including POX, the OpenFlow WireShark dissector, the `oftest`

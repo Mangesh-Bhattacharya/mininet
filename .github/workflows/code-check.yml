@@ -23,3 +23,10 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Run code check
         run: make codecheck PYTHON=python
+      - name: API documentation builds (doxygen + util/doxify.py)
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq doxygen
+          python util/doxify.py mininet/net.py > /dev/null
+          ( cat doc/doxygen.cfg; echo "GENERATE_LATEX = NO" ) | doxygen -
+          test -s doc/html/index.html

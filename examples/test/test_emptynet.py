@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for emptynet.py
@@ -13,17 +13,17 @@ class testEmptyNet( unittest.TestCase ):
 
     def testEmptyNet( self ):
         "Run simple CLI tests: pingall (verify 0% drop) and iperf (sanity)"
-        p = pexpect.spawn( 'python -m mininet.examples.emptynet' )
+        p = pexpect.spawn( 'python3 -m mininet.examples.emptynet' )
         p.expect( self.prompt )
         # pingall test
         p.sendline( 'pingall' )
-        p.expect ( '(\d+)% dropped' )
+        p.expect ( r'(\d+)% dropped' )
         percent = int( p.match.group( 1 ) ) if p.match else -1
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         # iperf test
         p.sendline( 'iperf' )
-        p.expect( "Results: \['[\d.]+ .bits/sec', '[\d.]+ .bits/sec'\]" )
+        p.expect( r"Results: \['[\d.]+ .bits/sec', '[\d.]+ .bits/sec'\]" )
         p.expect( self.prompt )
         p.sendline( 'exit' )
         p.wait()

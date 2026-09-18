@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for numberedports.py
@@ -14,9 +14,9 @@ class testNumberedports( unittest.TestCase ):
     @unittest.skipIf( OVSSwitch.setup() or OVSSwitch.isOldOVS(), "old version of OVS" )
     def testConsistency( self ):
         """verify consistency between mininet and ovs ports"""
-        p = pexpect.spawn( 'python -m mininet.examples.numberedports' )
-        opts = [ 'Validating that s1-eth\d is actually on port \d ... Validated.',
-                 'Validating that s1-eth\d is actually on port \d ... WARNING',
+        p = pexpect.spawn( 'python3 -m mininet.examples.numberedports' )
+        opts = [ r'Validating that s1-eth\d is actually on port \d ... Validated.',
+                 r'Validating that s1-eth\d is actually on port \d ... WARNING',
                  pexpect.EOF ]
         correct_ports = True
         count = 0
@@ -33,8 +33,8 @@ class testNumberedports( unittest.TestCase ):
 
     def testNumbering( self ):
         """verify that all of the port numbers are printed correctly and consistent with their interface"""
-        p = pexpect.spawn( 'python -m mininet.examples.numberedports' )
-        opts = [ 's1-eth(\d+) :  (\d+)',
+        p = pexpect.spawn( 'python3 -m mininet.examples.numberedports' )
+        opts = [ r's1-eth(\d+) :  (\d+)',
                  pexpect.EOF ]
         count_intfs = 0
         while True:

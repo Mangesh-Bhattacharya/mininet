@@ -61,6 +61,23 @@ projects are placed next to the `mininet` directory, or in `-s <dir>`.
 | Only worked if the checkout directory was named `mininet` | paths are relative to the script |
 | Open vSwitch not started where there is no systemd | `install.sh -v` starts it if needed |
 
+## Install as a Debian package (.deb)
+
+To install and remove Mininet with `apt` like any other package, build a
+`.deb` from your checkout:
+
+```bash
+sudo apt-get install -y debhelper dh-python dpkg-dev help2man python3-all python3-setuptools
+dpkg-buildpackage -us -uc -b
+sudo apt-get install -y ../mininet_*.deb      # pulls in Open vSwitch and friends
+sudo mn --test pingall
+```
+
+Remove it with `sudo apt-get remove mininet`. CI builds, installs and tests
+this package on every change; the built `.deb` is attached to each run of
+the [tests workflow](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/tests.yml)
+as the `mininet-deb` artifact.
+
 ## Uninstall
 
 ```bash

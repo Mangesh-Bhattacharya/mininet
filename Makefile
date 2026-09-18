@@ -20,6 +20,12 @@ PDF = doc/latex/refman.pdf
 CC ?= cc
 
 CFLAGS += -Wall -Wextra
+# mnexec runs as root: build it hardened (distribution packaging may
+# override these with its own flags)
+HARDEN_CFLAGS ?= -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
+HARDEN_LDFLAGS ?= -pie -Wl,-z,relro,-z,now
+CFLAGS += $(HARDEN_CFLAGS)
+LDFLAGS += $(HARDEN_LDFLAGS)
 
 all: codecheck test
 

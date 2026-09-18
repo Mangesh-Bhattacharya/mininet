@@ -280,7 +280,8 @@ function mn_doc {
     if ! $install doxygen-latex; then
         echo "doxygen-latex not needed"
     fi
-    sudo pip2 install doxypy
+    # doxygen reads Python itself; util/doxify.py only adapts
+    # Mininet's docstring style (doxypy, which needed Python 2, is gone)
 }
 
 # The following will cause a full OF install, covering:

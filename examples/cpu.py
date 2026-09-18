@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 cpu.py: test iperf bandwidth for varying cpu limits

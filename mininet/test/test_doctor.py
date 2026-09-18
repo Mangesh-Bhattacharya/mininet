@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Package: mininet
    Unit tests for mininet.doctor (no root or network access needed)"""

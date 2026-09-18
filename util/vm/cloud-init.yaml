@@ -20,7 +20,7 @@ write_files:
       #!/bin/bash
       set -e
       MININET_REPO=https://github.com/Mangesh-Bhattacharya/mininet.git
-      MININET_BRANCH=master
+      MININET_BRANCH=main
       USER_NAME=$(getent passwd 1000 | cut -d: -f1)
       USER_HOME=$(getent passwd 1000 | cut -d: -f6)
       cd "$USER_HOME"

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Custom topology example
 
 Two directly connected switches plus a host for each switch:
@@ -5,7 +7,11 @@ Two directly connected switches plus a host for each switch:
    host --- switch --- switch --- host
 
 Adding the 'topos' dict with a key/value pair to generate our newly defined
-topology enables one to pass in '--topo=mytopo' from the command line.
+topology enables one to pass in '--topo=mytopo' from the command line:
+
+   sudo mn --custom custom/topo-2sw-2host.py --topo mytopo --test pingall
+
+The same network as a lab configuration file: topo-2sw-2host.yaml
 """
 
 from mininet.topo import Topo

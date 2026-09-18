@@ -1,85 +1,78 @@
-#!/usr/bin/python2
+#!/usr/bin/env python3
 
 """
-Convert simple documentation to epydoc/pydoctor-compatible markup
-"""
+Doxygen input filter for Mininet's docstring style.
 
-from sys import stdin, stdout, argv
-import os
-from tempfile import mkstemp
-from subprocess import call
+Mininet documents parameters as "name: description" and results as
+"returns: description". This filter turns them into doxygen @param and
+@returns commands and makes one-line "docstrings" triple-quoted, then
+writes the result to standard output for doxygen (INPUT_FILTER in
+doc/doxygen.cfg). doxygen parses Python docstrings itself, so the old
+doxypy (Python 2) post-processing step is no longer needed.
+
+Usage: util/doxify.py file.py > filtered.py
+"""
 
 import re
+import sys
 
 spaces = re.compile( r'\s+' )
 singleLineExp = re.compile( r'\s+"([^"]+)"' )
 commentStartExp = re.compile( r'\s+"""' )
 commentEndExp = re.compile( r'"""$' )
-returnExp = re.compile( r'\s+(returns:.*)' )
-lastindent = ''
 
 
-comment = False
+class Filter( object ):
+    "Line-by-line docstring converter"
 
-def fixParam( line ):
-    "Change foo: bar to @foo bar"
-    result = re.sub( r'(\w+):', r'@param \1', line )
-    result = re.sub( r'   @', r'@', result)
-    return result
+    def __init__( self ):
+        self.comment = False
 
-def fixReturns( line ):
-    "Change returns: foo to @return foo"
-    return re.sub( 'returns:', r'@returns', line )
+    @staticmethod
+    def fixParam( line ):
+        "Change foo: bar to @param foo bar"
+        result = re.sub( r'(\w+):', r'@param \1', line )
+        return re.sub( r'   @', r'@', result )
 
-def fixLine( line ):
-    global comment
-    match = spaces.match( line )
-    if not match:
+    @staticmethod
+    def fixReturns( line ):
+        "Change returns: foo to @returns foo"
+        return re.sub( 'returns:', r'@returns', line )
+
+    def fixLine( self, line ):
+        "Convert one line"
+        if not spaces.match( line ):
+            return line
+        if singleLineExp.match( line ):
+            return re.sub( '"', '"""', line )
+        if commentStartExp.match( line ):
+            self.comment = True
+        if self.comment:
+            line = self.fixParam( self.fixReturns( line ) )
+        if commentEndExp.search( line.rstrip() ):
+            self.comment = False
         return line
-    else:
-        indent = match.group(0)
-    if singleLineExp.match( line ):
-        return re.sub( '"', '"""', line )
-    if commentStartExp.match( line ):
-        comment = True
-    if comment:
-        line = fixReturns( line )
-        line = fixParam( line )
-    if commentEndExp.search( line ):
-        comment = False
-    return line
 
 
 def test():
     "Test transformations"
-    assert fixLine(' "foo"') == ' """foo"""'
-    assert fixParam( 'foo: bar' ) == '@param foo bar'
-    assert commentStartExp.match( '   """foo"""')
+    f = Filter()
+    assert f.fixLine( ' "foo"' ) == ' """foo"""'
+    assert Filter.fixParam( 'foo: bar' ) == '@param foo bar'
+    assert commentStartExp.match( '   """foo"""' )
 
-def funTest():
-    testFun = (
-    'def foo():\n'
-    '   "Single line comment"\n'
-    '   """This is a test"""\n'
-    '      bar: int\n'
-    '      baz: string\n'
-    '      returns: junk"""\n'
-    '   if True:\n'
-    '       print "OK"\n'
-    ).splitlines( True )
 
-    fixLines( testFun )
+def main( argv ):
+    "Filter argv[1] to stdout"
+    if len( argv ) != 2:
+        sys.stderr.write( __doc__ )
+        return 2
+    converter = Filter()
+    with open( argv[ 1 ], encoding='utf-8' ) as infile:
+        for line in infile:
+            sys.stdout.write( converter.fixLine( line ) )
+    return 0
 
-def fixLines( lines, fid ):
-    for line in lines:
-        os.write( fid, fixLine( line ) )
 
 if __name__ == '__main__':
-    if False:
-        funTest()
-    infile = open( argv[1] )
-    outfid, outname = mkstemp()
-    fixLines( infile.readlines(), outfid )
-    infile.close()
-    os.close( outfid )
-    call( [ 'doxypy', outname ] )
+    sys.exit( main( sys.argv ) )

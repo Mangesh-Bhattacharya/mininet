@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Example to create a Mininet topology and connect it to the internet via NAT

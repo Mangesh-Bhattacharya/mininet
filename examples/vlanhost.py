@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 vlanhost.py: Host subclass that uses a VLAN tag for the default interface.
 

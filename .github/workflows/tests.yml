@@ -116,6 +116,39 @@ jobs:
             echo "::endgroup::"
           done
 
+  debian-package:
+    name: Debian package (build, install, run)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq \
+            debhelper dh-python dpkg-dev help2man python3-all python3-setuptools lintian
+      - name: Build the .deb
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist && mv ../mininet_*.deb dist/
+          ls -l dist
+      - name: Lintian (report only)
+        run: lintian --info dist/*.deb || true
+      - name: Install the .deb and run a network from it
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq ./dist/mininet_*.deb
+          cd /tmp
+          mnexec -v
+          sudo mn-doctor
+          sudo mn --test pingall
+          mn-config init -o lab.yaml
+          sudo mn-config run lab.yaml --no-cli
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mininet-deb
+          path: dist/*.deb
+
   examples:
     name: Example tests (ubuntu-24.04)
     runs-on: ubuntu-24.04

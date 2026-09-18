@@ -1,14 +1,43 @@
+# Build output
 mnexec
-*.pyc
-*~
 *.1
+build/
+dist/
+*.egg-info/
+doc/html/
+doc/latex/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/mininet/
+debian/*.substvars
+debian/*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mininet lab work (mounted into containers as /workspace)
+workspace/
+.mn-gui-*
+
+# Security scan reports produced locally
+*.sarif
+
+# Editors and OS
+*~
+\#*\#
+.vscode/
+.idea/
 *.xcodeproj
 *.xcworkspace
-\#*\#
-mininet.egg-info
-build
-dist
-doc/html
-doc/latex
-trunk
+.DS_Store
+Thumbs.db
 
+# Historical
+trunk

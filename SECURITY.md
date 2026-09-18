@@ -17,7 +17,7 @@ that also affect upstream are reported to
 
 | Version | Supported |
 |---------|-----------|
-| `master` branch and the `latest` / `full` images | Yes - patched weekly |
+| `main` branch and the `latest` / `full` images | Yes - patched weekly |
 | Weekly dated images (`YYYYMMDD`) | The newest one only |
 | Upstream Mininet releases (2.3.x and older) and old VM images | No - use this fork or its images |
 
