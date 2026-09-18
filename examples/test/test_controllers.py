@@ -30,6 +30,7 @@ class testControllers( unittest.TestCase ):
             self.assertEqual( actual, expected )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testControllers( self ):

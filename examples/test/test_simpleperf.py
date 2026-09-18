@@ -30,6 +30,7 @@ class testSimplePerf( unittest.TestCase ):
         upperBound = BW + ( 1 + TOLERANCE )
         self.assertGreaterEqual( measuredBw, lowerBound )
         self.assertLessEqual( measuredBw, upperBound )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
 if __name__ == '__main__':

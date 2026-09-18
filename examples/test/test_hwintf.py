@@ -34,6 +34,7 @@ class testHwintf( unittest.TestCase ):
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testExternalPing( self ):
@@ -54,6 +55,7 @@ class testHwintf( unittest.TestCase ):
         self.assertEqual( tx, rx )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def tearDown( self ):

@@ -22,6 +22,7 @@ class testTree1024( unittest.TestCase ):
         packetLossPercent = int( p.match.group( 1 ) ) if p.match else -1
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=1800 )
         p.wait()
         # Tolerate slow startup on some systems - we should revisit this
         # and determine the root cause.

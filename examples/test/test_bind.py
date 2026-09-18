@@ -60,6 +60,7 @@ class testBind( unittest.TestCase ):
 
     def tearDown( self ):
         self.net.sendline( 'exit' )
+        self.net.expect( pexpect.EOF, timeout=300 )
         self.net.wait()
 
 if __name__ == '__main__':

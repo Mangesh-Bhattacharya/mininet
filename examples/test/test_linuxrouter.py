@@ -21,6 +21,7 @@ class testLinuxRouter( unittest.TestCase ):
         percent = int( p.match.group( 1 ) ) if p.match else -1
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( percent, 0 )
 
@@ -33,6 +34,7 @@ class testLinuxRouter( unittest.TestCase ):
         percent = int( p.match.group( 1 ) ) if p.match else -1
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( percent, 0 )
 
@@ -45,6 +47,7 @@ class testLinuxRouter( unittest.TestCase ):
         ttl = int( p.match.group( 1 ) ) if p.match else -1
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( ttl, 63 ) # 64 - 1
 

@@ -26,6 +26,7 @@ class testEmptyNet( unittest.TestCase ):
         p.expect( r"Results: \['[\d.]+ .bits/sec', '[\d.]+ .bits/sec'\]" )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
 if __name__ == '__main__':

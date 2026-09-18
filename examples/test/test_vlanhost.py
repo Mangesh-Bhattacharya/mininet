@@ -23,6 +23,7 @@ class testVLANHost( unittest.TestCase ):
         percent = int( p.match.group( 1 ) ) if p.match else -1
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( percent, 80 )
 
@@ -42,6 +43,7 @@ class testVLANHost( unittest.TestCase ):
         p.expect( self.prompt )
 
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( percent, 0 ) # no packet loss on ping
         self.assertEqual( i, 0 ) # check vlan intf is present

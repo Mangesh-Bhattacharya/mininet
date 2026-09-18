@@ -23,7 +23,7 @@ from mininet.cli import CLI
 from mininet.log import lg, info
 from mininet.node import Node
 from mininet.topolib import TreeTopo
-from mininet.util import waitListening
+from mininet.util import waitListening, quietRun
 
 
 def TreeNet( depth=1, fanout=2, **kwargs ):
@@ -59,6 +59,9 @@ def sshd( network, cmd='/usr/sbin/sshd', opts='-D',
     if not routes:
         routes = [ '10.0.0.0/24' ]
     connectToRootNS( network, switch, ip, routes )
+    # sshd refuses to start without its privilege separation directory,
+    # which current distributions only create when the ssh service runs
+    quietRun( 'mkdir -p -m 0755 /run/sshd' )
     for host in network.hosts:
         host.cmd( cmd + ' ' + opts + '&' )
     info( "*** Waiting for ssh daemons to start\n" )

@@ -25,6 +25,7 @@ class testMultiTest( unittest.TestCase ):
             elif index == 1:
                 p.sendline( 'exit' )
                 break
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
         self.assertEqual( ifCount, 4 )
 

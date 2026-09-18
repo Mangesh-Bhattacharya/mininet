@@ -22,6 +22,7 @@ class clusterSanityCheck( unittest.TestCase ):
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
 

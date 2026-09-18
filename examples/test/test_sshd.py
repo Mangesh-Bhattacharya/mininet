@@ -16,7 +16,8 @@ class testSSHD( unittest.TestCase ):
         "Log into ssh server, check banner, then exit"
         # Note: this test will fail if "Welcome" is not in the sshd banner
         # and '#'' or '$'' are not in the prompt
-        ssh = 'ssh -o StrictHostKeyChecking=no -i /tmp/ssh/test_rsa ' + ip
+        ssh = ( 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+                '-o BatchMode=yes -o ConnectTimeout=5 -i /tmp/ssh/test_rsa ' + ip )
         p = pexpect.spawn( ssh, timeout=5 )
         while True:
             index = p.expect( self.opts )
@@ -27,7 +28,7 @@ class testSSHD( unittest.TestCase ):
                 return False
             elif index == 2:
                 p.sendline( 'exit' )
-                p.wait()
+                p.expect( pexpect.EOF )
                 return True
             else:
                 return False
@@ -52,6 +53,9 @@ class testSSHD( unittest.TestCase ):
 
     def tearDown( self ):
         self.net.sendline( 'exit' )
+        # Read until the example exits: wait() alone can deadlock once
+        # its output fills the pty buffer
+        self.net.expect( pexpect.EOF, timeout=120 )
         self.net.wait()
         # remove public key pair
         sh( 'rm -rf /tmp/ssh' )

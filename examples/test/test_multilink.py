@@ -49,6 +49,7 @@ class testMultiLink( unittest.TestCase ):
 
         self.assertEqual( sysIntfList, intfList, msg=failMsg )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
 if __name__ == '__main__':

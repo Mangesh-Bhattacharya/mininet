@@ -23,6 +23,7 @@ class testControlNet( unittest.TestCase ):
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testFailover( self ):
@@ -43,6 +44,7 @@ class testControlNet( unittest.TestCase ):
             self.assertEqual( count, ip )
             count += 1
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
 if __name__ == '__main__':

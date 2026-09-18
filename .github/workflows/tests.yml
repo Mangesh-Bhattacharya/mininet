@@ -174,14 +174,17 @@ jobs:
              systemd-udevd-control.socket
              || echo "couldn't disable udevd"
       - name: Run examples tests (each file under a time limit)
-        timeout-minutes: 75
+        timeout-minutes: 120
         run: |
           # One file at a time, so a hung example can't stall the job and
           # the log says exactly which one failed
           failed=""
           for t in examples/test/test_*.py; do
             echo "::group::$t"
-            if ! sudo timeout --kill-after=30 600 python3 "$t" -v; then
+            limit=600
+            # 1024 hosts legitimately take a while to start and stop
+            case "$t" in *tree1024*) limit=2700;; esac
+            if ! sudo timeout --kill-after=30 "$limit" python3 "$t" -v; then
               failed="$failed $t"
             fi
             sudo mn -c > /dev/null 2>&1 || true
