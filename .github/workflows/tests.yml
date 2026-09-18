@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -134,7 +134,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq \
-            debhelper dh-python dpkg-dev help2man python3-all python3-setuptools lintian
+            build-essential debhelper dh-python dpkg-dev help2man python3-all python3-setuptools lintian
       - name: Build the .deb
         run: |
           dpkg-buildpackage -us -uc -b

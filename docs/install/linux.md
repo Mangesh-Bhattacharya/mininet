@@ -67,7 +67,7 @@ To install and remove Mininet with `apt` like any other package, build a
 `.deb` from your checkout:
 
 ```bash
-sudo apt-get install -y debhelper dh-python dpkg-dev help2man python3-all python3-setuptools
+sudo apt-get install -y build-essential debhelper dh-python dpkg-dev help2man python3-all python3-setuptools
 dpkg-buildpackage -us -uc -b
 sudo apt-get install -y ../mininet_*.deb      # pulls in Open vSwitch and friends
 sudo mn --test pingall

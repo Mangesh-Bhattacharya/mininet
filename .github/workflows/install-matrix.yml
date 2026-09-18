@@ -7,7 +7,7 @@ name: install-matrix
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
