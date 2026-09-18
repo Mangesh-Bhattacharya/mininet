@@ -212,6 +212,7 @@ function mn_deps {
             ethtool help2man net-tools bridge-utils iputils
         $install ${PYPKG}-pyflakes pylint ${PYPKG}-pep8-naming \
             ${PYPKG}-pexpect
+        $install ${PYPKG}-pyyaml || echo "Skipping PyYAML: use JSON lab configs"
     elif [ "$DIST" = "SUSE LINUX"  ]; then
 		$install gcc make socat psmisc xterm openssh iperf \
 			iproute telnet ${PYPKG}-setuptools libcgroup-tools \
@@ -255,6 +256,8 @@ function mn_deps {
             rm get-pip.py
         fi
         $install ${PYPKG}-pexpect || sudo ${PYTHON} -m pip install pexpect
+        # YAML lab configurations (mn-config, mn-gui)
+        $install ${PYPKG}-yaml || echo "Skipping PyYAML: use JSON lab configs"
         $install iproute2 || $install iproute
         $install cgroup-tools || $install cgroup-bin
         # cgroupfs-mount is gone from newer releases (cgroups v2)

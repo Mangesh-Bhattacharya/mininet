@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+"""
+mn-config: create, check and run Mininet lab configurations written in
+YAML, JSON, Python, C, C++, C#, Java, Ruby or COBOL.
+See mininet/labconfig.py and docs/configuration.md.
+"""
+
+import sys
+
+from mininet.labconfig import main
+
+if __name__ == '__main__':
+    sys.exit( main() )

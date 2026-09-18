@@ -16,6 +16,11 @@
     Quote arguments containing commas: PowerShell treats a,b as an array.
 
 .EXAMPLE
+    .\scripts\mininet-docker.ps1 -Gui
+    Start the browser GUI for lab.yaml in the current directory, then open
+    the http://localhost:8080/#token=... URL it prints.
+
+.EXAMPLE
     .\scripts\mininet-docker.ps1 -Build
     Build the image from this checkout instead of pulling it.
 #>
@@ -25,6 +30,9 @@ param(
     [string]$Image = $(if ($env:MININET_IMAGE) { $env:MININET_IMAGE } else { 'ghcr.io/mangesh-bhattacharya/mininet:latest' }),
     [switch]$NoMount,
     [switch]$DryRun,
+    [switch]$Gui,
+    [ValidateRange(1, 65535)]
+    [int]$Port = 8080,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Command
 )
@@ -78,6 +86,11 @@ else {
 }
 if (-not $NoMount) {
     $runArgs += @('-v', "$((Get-Location).Path):/workspace")
+}
+if ($Gui) {
+    # Loopback only: the GUI can run commands as root in the emulated hosts
+    $runArgs += @('-p', "127.0.0.1:${Port}:${Port}")
+    if (-not $Command) { $Command = @('mn-gui', '--port', "$Port", '--config', '/workspace/lab.yaml') }
 }
 $runArgs += $Image
 if ($Command) { $runArgs += $Command }

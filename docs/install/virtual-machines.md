@@ -76,6 +76,19 @@ Wireshark, either install a desktop (`sudo apt-get install ubuntu-desktop-minima
 or connect with SSH X forwarding (`ssh -Y`) from a host with an X server
 (built in on Linux, XQuartz on macOS, MobaXterm or VcXsrv on Windows).
 
+## Using the browser GUI from your computer
+
+Run `mn-gui` inside the VM and reach it through an SSH tunnel, which
+keeps it off the network and encrypts it:
+
+```bash
+vagrant ssh -- -L 8080:localhost:8080            # or: ssh -L 8080:localhost:8080 user@vm
+sudo mn-gui --config lab.yaml                    # inside the VM
+```
+
+Then open the printed `http://localhost:8080/#token=...` URL on your
+computer. See [gui.md](../gui.md).
+
 ## Building a tutorial VM for a class
 
 `util/vm/install-mininet-vm.sh` turns a fresh Ubuntu/Debian VM into the

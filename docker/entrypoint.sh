@@ -47,6 +47,9 @@ if [ -t 0 ] && [ -t 1 ] && [ "$#" -eq 1 ] && [ "$1" = "bash" ]; then
 
     mn --test pingall          quick self-test
     mn                         interactive CLI (type 'exit' to leave)
+    mn-config init             write a starter lab configuration
+    mn-config run lab.yaml     run your lab configuration
+    mn-gui --config lab.yaml   browser GUI (needs -p 127.0.0.1:8080:8080)
     mn-doctor                  check what works in this environment
     mn -c                      clean up after a crash
 

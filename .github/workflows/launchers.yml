@@ -9,19 +9,26 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - run: shellcheck scripts/mininet-docker.sh docker/entrypoint.sh docker/sudo-shim.sh
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: shellcheck scripts/mininet-docker.sh scripts/ci/*.sh docker/entrypoint.sh docker/sudo-shim.sh
 
   macos:
     name: macOS launcher + doctor
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Launcher runs under macOS's bash 3.2
         run: |
           /bin/bash --version | head -1
@@ -30,6 +37,9 @@ jobs:
           echo "$out"; echo "$out" | grep -q -- '--privileged'
           out=$(/bin/bash scripts/mininet-docker.sh --dry-run mn --test pingall)
           echo "$out"; echo "$out" | grep -q 'mn --test pingall$'
+          out=$(/bin/bash scripts/mininet-docker.sh --dry-run --gui --port 9000)
+          echo "$out"; echo "$out" | grep -q -- '-p 127.0.0.1:9000:9000'
+          echo "$out" | grep -q 'mn-gui --port 9000 --config /workspace/lab.yaml$'
       - name: mn-doctor explains how to run Mininet on macOS
         run: |
           set +e
@@ -41,13 +51,18 @@ jobs:
     name: Windows launcher + doctor
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: PowerShell 7
         shell: pwsh
         run: |
           $out = ./scripts/mininet-docker.ps1 -DryRun mn --test pingall
           $out
           if ($out -notmatch '--privileged' -or $out -notmatch 'mn --test pingall$') { exit 1 }
+          $out = ./scripts/mininet-docker.ps1 -DryRun -Gui -Port 9000
+          $out
+          if ($out -notmatch '-p 127\.0\.0\.1:9000:9000' -or $out -notmatch 'mn-gui --port 9000') { exit 1 }
       - name: Windows PowerShell 5.1 via .cmd wrapper
         shell: cmd
         run: |

@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Weekly, so breakage from new runner images or dependencies shows up
+    # even when nobody pushes
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   unit:
@@ -12,16 +19,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - name: Import Mininet modules (no packaging/distutils available)
-        run: python -c "import mininet.net, mininet.node, mininet.cli, mininet.doctor; print('imports ok')"
-      - name: Doctor unit tests
-        run: python -m unittest mininet.test.test_doctor -v
+      - name: Import Mininet modules (no packaging/distutils/PyYAML)
+        run: python -c "import mininet.net, mininet.node, mininet.cli, mininet.doctor, mininet.labconfig, mininet.webgui; print('imports ok')"
+      - name: Install PyYAML
+        run: python -m pip install -r requirements.txt
+      - name: Unit tests (mn-doctor, mn-config, mn-gui)
+        run: python -m unittest -v mininet.test.test_doctor mininet.test.test_labconfig mininet.test.test_webgui
 
   native:
     name: Mininet on ${{ matrix.os }}
@@ -31,7 +42,9 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Mininet and Open vSwitch with install.sh
         run: |
           sudo apt-get update -qq
@@ -51,6 +64,14 @@ jobs:
         run: sudo mn --switch lxbr --controller none --test pingall
       - name: Sanity test (tree topology, TCLink)
         run: sudo mn --topo tree,depth=2,fanout=2 --link tc,bw=10,delay=5ms --test pingall
+      - name: Lab configuration (YAML template, shaped link, pingall)
+        run: |
+          cd "$RUNNER_TEMP"
+          mn-config init --lang yaml -o lab.yaml
+          mn-config validate lab.yaml
+          sudo mn-config run lab.yaml --no-cli
+      - name: Browser GUI end to end (mn-gui API)
+        run: scripts/ci/gui-smoke-test.sh
       - name: Install core test dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq vlan tshark
@@ -58,11 +79,50 @@ jobs:
       - name: Run core tests
         run: sudo python3 mininet/test/runner.py -v
 
+  languages:
+    name: Lab configurations in every language
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install Mininet, Ruby and GnuCOBOL
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq ruby gnucobol
+          util/install.sh -nv
+      - name: Toolchains
+        run: mn-config languages
+      - name: Every template validates (as the runner user)
+        run: python3 -m unittest -v mininet.test.test_labconfig.TemplateTests
+      - name: Every template runs a real network (config programs run as the runner user, not root)
+        run: |
+          cd "$RUNNER_TEMP"
+          for spec in yaml:lab.yaml json:lab.json python:lab.py c:lab.c \
+                      cpp:lab.cpp csharp:lab.cs java:Lab.java ruby:lab.rb \
+                      cobol:lab.cob; do
+            lang=${spec%%:*} file=${spec#*:}
+            echo "::group::$lang ($file)"
+            mn-config init --lang "$lang" -o "$file" --force
+            # sudo resets PATH; keep it so dotnet/java from setup-* are found
+            sudo env "PATH=$PATH" mn-config run "$file" --no-cli
+            echo "::endgroup::"
+          done
+
   examples:
     name: Example tests (ubuntu-24.04)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Mininet, Open vSwitch and the reference switch
         run: |
           sudo apt-get update -qq

@@ -10,6 +10,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   distro:
     name: install.sh on ${{ matrix.image }}
@@ -19,7 +22,9 @@ jobs:
       matrix:
         image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12", "debian:13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Load kernel modules on the host
         run: sudo modprobe -a openvswitch sch_htb sch_netem
       - name: Install and test Mininet in ${{ matrix.image }}

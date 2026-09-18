@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+"""
+mn-gui: browser GUI for Mininet labs (sudo mn-gui --config lab.yaml).
+See mininet/webgui.py and docs/gui.md.
+"""
+
+import sys
+
+from mininet.webgui import main
+
+if __name__ == '__main__':
+    sys.exit( main() )

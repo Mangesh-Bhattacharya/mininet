@@ -10,7 +10,8 @@ import sys
 sys.path.append( '.' )
 from mininet.net import VERSION
 
-scripts = [ join( 'bin', filename ) for filename in [ 'mn', 'mn-doctor' ] ]
+scripts = [ join( 'bin', filename ) for filename in
+            [ 'mn', 'mn-doctor', 'mn-config', 'mn-gui' ] ]
 
 modname = distname = 'mininet'
 
@@ -21,6 +22,7 @@ setup(
     author='Bob Lantz',
     author_email='rlantz@cs.stanford.edu',
     packages=[ 'mininet', 'mininet.examples' ],
+    package_data={ 'mininet': [ 'templates/*', 'webgui_static/*' ] },
     long_description="""
         Mininet is a network emulator which uses lightweight
         virtualization to create virtual networks for rapid
@@ -39,5 +41,8 @@ setup(
     install_requires=[
         'setuptools'
     ],
+    # YAML configuration files (mn-config, mn-gui); JSON and the other
+    # languages work without it
+    extras_require={ 'yaml': [ 'PyYAML' ] },
     scripts=scripts,
 )

@@ -1,7 +1,8 @@
 Mininet: Rapid Prototyping for Software Defined Networks
 ========================================================
 *The best way to emulate almost any network on your laptop, now on
-Linux, Windows, macOS and virtual machines.*
+Linux, Windows, macOS, virtual machines and Docker - from the command
+line or your browser.*
 
 Mininet 2.3.1b4 &middot; cross-platform edition
 
@@ -9,6 +10,7 @@ Mininet 2.3.1b4 &middot; cross-platform edition
 [![install-matrix](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/install-matrix.yml/badge.svg)](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/install-matrix.yml)
 [![docker](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml/badge.svg)](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml)
 [![launchers](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml/badge.svg)](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml)
+[![security](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml/badge.svg)](https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml)
 [![License: BSD](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
 
 > This is a community-maintained fork of
@@ -34,7 +36,10 @@ its last upstream release predates current operating systems, and in
 - CI targeted retired Ubuntu 20.04 runners and Python 2.
 
 This fork fixes those problems without changing how Mininet works, and
-tests every supported path in CI.
+tests every supported path in CI. It also adds what a first-time user
+expects from a tool today: a **browser GUI**, **lab configuration files**
+you can write in the language you know, a **Docker image that needs
+nothing else installed**, and **weekly, automated security patching**.
 
 ---
 
@@ -46,6 +51,7 @@ tests every supported path in CI.
 | **Windows 10/11** | [Docker Desktop](docs/install/docker.md): `.\scripts\mininet-docker.ps1` | [WSL 2](docs/install/windows.md) |
 | **macOS** (Intel or Apple Silicon) | [Docker/OrbStack/Colima](docs/install/docker.md): `scripts/mininet-docker.sh` | [Multipass, UTM or Vagrant VM](docs/install/macos.md) |
 | **Any OS, isolated VM** | [Vagrant](docs/install/virtual-machines.md#vagrant): `vagrant up` | [Multipass / any hypervisor](docs/install/virtual-machines.md) |
+| **Any OS, no Git** | [Docker only](docs/install/docker.md#quick-start-without-github-docker-only): `docker run --rm -it --privileged ghcr.io/mangesh-bhattacharya/mininet` | - |
 
 #### Linux (Ubuntu 22.04/24.04, Debian 12/13)
 
@@ -73,6 +79,54 @@ cd mininet
 vagrant up && vagrant ssh
 sudo mn --test pingall
 ```
+
+#### Docker only - no Git, no clone
+
+```bash
+docker run --rm -it --privileged ghcr.io/mangesh-bhattacharya/mininet
+docker run --rm -it --privileged -p 127.0.0.1:8080:8080 -v "$PWD:/workspace" \
+  ghcr.io/mangesh-bhattacharya/mininet mn-gui --config /workspace/lab.yaml   # GUI
+```
+
+### Build your lab: command line or browser
+
+Describe your network in a **lab configuration** file - in **YAML, JSON,
+Python, C, C++, C#, Java, Ruby or COBOL** - then check and run it:
+
+```bash
+mn-config init --lang yaml          # commented starter file (or --lang c, java, cobol...)
+mn-config validate lab.yaml         # friendly errors with hints; no root needed
+sudo mn-config run lab.yaml         # start it, run its commands and tests, open the CLI
+sudo mn-gui --config lab.yaml       # the same lab in your browser
+```
+
+```yaml
+version: 1                  # [FIXED]    don't change
+name: two-switch-lab        # [EDIT]     your lab
+network:
+  controller: default       # [EDIT]     default | remote | none
+  datapath: auto            # [ADVANCED] leave on auto
+hosts:
+  - { name: h1, ip: 10.0.0.1/24 }
+  - { name: h2, ip: 10.0.0.2/24 }
+switches: [ { name: s1 }, { name: s2 } ]
+links:
+  - [h1, s1]
+  - [h2, s2]
+  - { from: s1, to: s2, bw: 10, delay: 5ms }
+tests: [pingall]
+```
+
+Every setting is marked **edit freely**, **advanced** or **do not edit**,
+in the starter files, in `mn-config schema` and in the GUI's Guide tab.
+See [docs/configuration.md](docs/configuration.md).
+
+The **browser GUI** (`mn-gui`) draws the topology, checks your
+configuration as you type, starts and stops the network, shows a ping
+matrix, runs commands on hosts and measures bandwidth. It works from
+the browser on your Windows or macOS machine even when Mininet runs in
+Docker, WSL or a VM, and is locked to `localhost` with an access token.
+See [docs/gui.md](docs/gui.md).
 
 ### Check your setup with `mn-doctor`
 
@@ -161,6 +215,9 @@ virtual machine.
 | Docker | Multi-arch image (`amd64`, `arm64`) on GHCR, entrypoint that starts OVS, launchers for bash, PowerShell and `cmd` |
 | VMs | `Vagrantfile` (VirtualBox, VMware, Parallels, Hyper-V, libvirt), Multipass/cloud-init config, updated tutorial VM script |
 | Diagnostics | `mn-doctor` environment checker (text and JSON) |
+| Lab configurations | `mn-config`: one schema, nine languages (YAML, JSON, Python, C, C++, C#, Java, Ruby, COBOL), validation with hints, tests with exit codes for autograders |
+| GUI | `mn-gui`: browser GUI with topology view, live validation, ping matrix, node console and iperf; standard library only |
+| Security | Weekly rebuilt, scanned and signed images; Dependabot, CodeQL, Trivy and pip-audit; SHA-pinned actions; see [SECURITY.md](SECURITY.md) |
 | CI | Native Ubuntu 22.04/24.04, Debian 12/13 and Ubuntu containers, Docker image on amd64 + arm64, launchers on macOS and Windows |
 | Line endings | `.gitattributes` keeps scripts runnable when cloned on Windows |
 
@@ -178,7 +235,10 @@ keep working.
 | Docker image, amd64 and arm64 | build, then `pingall` with userspace and kernel datapaths, and the launcher |
 | macOS | bash 3.2 launcher, `mn-doctor` guidance |
 | Windows | PowerShell 7, Windows PowerShell 5.1, `cmd` and Git Bash launchers, `mn-doctor` guidance |
-| Python 3.9-3.13 | module imports, `mn-doctor` unit tests |
+| Ubuntu 24.04 | lab configurations in all nine languages run real networks; `mn-gui` driven end to end over its API |
+| Docker image | `mn-config` and `mn-gui` inside the container; `full` image with Java, C# and COBOL |
+| Python 3.9-3.14 | module imports; unit tests for `mn-doctor`, `mn-config` and `mn-gui` (including its security checks) |
+| Every push and every Monday | CodeQL, Trivy, pip-audit, dependency review; images rebuilt with the latest security updates |
 
 GitHub's macOS and Windows runners can't run Linux containers, so the
 Mininet networks themselves are exercised on Linux, which is where they
@@ -193,6 +253,9 @@ run on every platform.
   [Virtual machines](docs/install/virtual-machines.md)
 * [Getting started](docs/getting-started.md) and
   [Troubleshooting](docs/troubleshooting.md)
+* [Lab configuration files](docs/configuration.md) (what to edit and what
+  not to) and the [browser GUI](docs/gui.md)
+* [Security policy and patching](SECURITY.md)
 * The original [`INSTALL`](INSTALL) notes
 * Research: [Mininet-AI feasibility study](docs/research/mininet-ai.md)
   (AI controllers, LLM network agents, RL environments and AI tutoring

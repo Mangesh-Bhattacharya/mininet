@@ -156,10 +156,18 @@ rule-based agent on the same scenarios.
 | Phase | Deliverable | Test gate |
 |-------|-------------|-----------|
 | **0 (done)** | Cross-platform Mininet, Docker image, CI, `mn-doctor --json` | Workflows green on every commit |
+| **0b (done)** | Validated lab configuration schema (`mn-config`, JSON/YAML), browser GUI with a token-protected JSON API (`mn-gui`) | 68 unit tests; every language and the GUI API exercised against real networks in CI |
 | **1** | `mininet-ai` package: typed action API, 5 fault-injection scenarios, deterministic checkers, rule-based baseline | Unit tests without root; integration tests in the fork's Docker image in CI |
 | **2** | MCP server + LLM troubleshooting agent; 20-50 scenario benchmark with detection/localization/fix scoring | Recorded-transcript replay in CI; manual live runs with an API key |
 | **3** | Gymnasium environment + ML DDoS detector (can reuse ideas from the `graph-based-network-intrusion-detection` project) + RL mitigation demo | Seeded training runs meet a baseline F1/reward; reproducible across two platforms |
 | **4** | Student tutor: explains `mn-doctor` results and CLI errors, generates and autogrades labs | Accuracy on a labelled set of broken setups; small course pilot |
+
+Phase 0b gives the AI work two ready-made interfaces: an agent can
+**propose a topology** as a lab configuration and get precise,
+machine-readable validation errors back (`mininet.labconfig.validate`,
+`Issue.asDict()`), and it can **observe and act on a running network**
+through the same JSON API the GUI uses (`/api/pingall`, `/api/exec`),
+which an MCP server can wrap with a tighter allowlist of actions.
 
 ## 7. Decisions needed before building
 

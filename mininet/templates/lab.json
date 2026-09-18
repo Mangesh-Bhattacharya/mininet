@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "two-switch-lab",
+  "description": "Three hosts on two switches, with a slow 10 Mbit/s link between the switches. JSON has no comments: see lab.yaml or docs/configuration.md for what each setting means.",
+  "network": {
+    "controller": "default",
+    "switch": "ovs",
+    "datapath": "auto"
+  },
+  "hosts": [
+    { "name": "h1", "ip": "10.0.0.1/24" },
+    { "name": "h2", "ip": "10.0.0.2/24" },
+    { "name": "h3", "ip": "10.0.0.3/24" }
+  ],
+  "switches": [
+    { "name": "s1" },
+    { "name": "s2" }
+  ],
+  "links": [
+    ["h1", "s1"],
+    ["h2", "s1"],
+    ["h3", "s2"],
+    { "from": "s1", "to": "s2", "bw": 10, "delay": "5ms" }
+  ],
+  "run": ["h1 ip -brief address"],
+  "tests": ["pingall"]
+}

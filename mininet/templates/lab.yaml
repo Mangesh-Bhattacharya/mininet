@@ -1,0 +1,100 @@
+# Mininet lab configuration (YAML)
+# =================================
+#
+# This file describes a virtual network: hosts, switches, the links
+# between them, and what to do once it is running.
+#
+#   mn-config validate lab.yaml     check this file (no root needed)
+#   sudo mn-config run lab.yaml     start the network and open the CLI
+#   mn-gui --config lab.yaml        edit and run it in your browser
+#   mn-config schema                list every setting
+#
+# Each setting is marked:
+#   [EDIT]      change freely - this is your lab
+#   [ADVANCED]  change only if you know why; the default works everywhere
+#   [FIXED]     do not change
+#
+# Full reference: docs/configuration.md
+
+version: 1                       # [FIXED] configuration format version
+
+name: two-switch-lab             # [EDIT] shown in the GUI and logs
+description: >-                  # [EDIT]
+  Three hosts on two switches, with a slow 10 Mbit/s link between
+  the switches.
+
+# ---------------------------------------------------------------------
+# Network-wide settings
+# ---------------------------------------------------------------------
+network:
+  controller: default            # [EDIT] default | remote | none
+  #   default: Mininet's built-in test controller (learning switch)
+  #   remote:  your own controller (Ryu, ONOS, POX, OpenDaylight...)
+  #   none:    no controller; needs switch: ovsbr or lxbr
+  # controller_ip: 127.0.0.1     # [EDIT] only for controller: remote
+  # controller_port: 6653        # [EDIT] only for controller: remote
+
+  switch: ovs                    # [EDIT] ovs | ovsbr | lxbr | user
+
+  datapath: auto                 # [ADVANCED] auto | kernel | user
+  #   auto picks the fast kernel datapath when available and the
+  #   userspace one otherwise (Docker Desktop, WSL). Leave it on auto.
+  ip_base: 10.0.0.0/8            # [ADVANCED] range for hosts without ip
+  auto_arp: true                 # [ADVANCED] pre-fill ARP tables
+  auto_mac: true                 # [ADVANCED] simple MACs (00:..:01)
+
+# ---------------------------------------------------------------------
+# Topology. EITHER use a built-in topology:
+#
+# topology:
+#   type: tree                   # minimal | single | linear | tree
+#   depth: 2                     # tree: levels of switches
+#   fanout: 2                    # tree: children per switch
+#   # hosts: 3                   # single: hosts; linear: per switch
+#   # switches: 4                # linear: number of switches
+#   link: { bw: 10, delay: 5ms } # applied to every link
+#
+# OR list hosts, switches and links yourself (below). Not both.
+# ---------------------------------------------------------------------
+
+# Names: a letter followed by up to 9 letters or digits (h1, web1).
+hosts:
+  - name: h1                     # [EDIT]
+    ip: 10.0.0.1/24              # [EDIT] address/prefix length
+  - name: h2
+    ip: 10.0.0.2/24
+  - name: h3
+    ip: 10.0.0.3/24
+    # mac: 00:00:00:00:00:03     # [ADVANCED] fixed MAC address
+    # gateway: 10.0.0.254        # [ADVANCED] default route
+
+# Switch names must contain a number (s1) unless you set a dpid.
+switches:
+  - name: s1                     # [EDIT]
+  - name: s2
+    # dpid: "0000000000000002"   # [ADVANCED] keep the quotes
+    # protocols: OpenFlow13      # [ADVANCED] ovs switches only
+
+# A link is [node, node], or a mapping with optional shaping:
+#   bw: Mbit/s   delay: 5ms   loss: percent   max_queue: packets
+links:
+  - [h1, s1]
+  - [h2, s1]
+  - [h3, s2]
+  - from: s1
+    to: s2
+    bw: 10                       # [EDIT] bandwidth limit, Mbit/s
+    delay: 5ms                   # [EDIT] one-way delay
+
+# ---------------------------------------------------------------------
+# After the network starts
+# ---------------------------------------------------------------------
+run:                             # [EDIT] "<node> <command>", in order
+  - h1 ip -brief address
+  # - h2 python3 -m http.server 80 &
+
+tests:                           # [EDIT] pingall | iperf
+  - pingall
+
+gui:
+  port: 8080                     # [EDIT] port for mn-gui

@@ -108,7 +108,24 @@ The same class can be loaded by `mn`:
 sudo mn --custom mytopo.py --topo twoswitch   # after adding: topos = {'twoswitch': TwoSwitchTopo}
 ```
 
-## 6. Where to go next
+## 6. Lab configuration files and the browser GUI
+
+Instead of long `mn` command lines or Python, you can describe a lab in
+a file - YAML, JSON, Python, C, C++, C#, Java, Ruby or COBOL - and run
+it:
+
+```bash
+mn-config init --lang yaml         # commented starter file: lab.yaml
+mn-config validate lab.yaml        # check it
+sudo mn-config run lab.yaml        # run it
+sudo mn-gui --config lab.yaml      # or edit and run it in your browser
+```
+
+The starter file marks every setting as *edit freely*, *advanced* or
+*do not edit*. See [configuration.md](configuration.md) and
+[gui.md](gui.md).
+
+## 7. Where to go next
 
 - `examples/` has 40+ scripts: NAT, Linux routers, CPU limits, multiple
   controllers, bandwidth tests, and the MiniEdit GUI (`examples/miniedit.py`).

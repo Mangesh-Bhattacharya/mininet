@@ -1,0 +1,4 @@
+# Optional runtime dependency: YAML lab configurations (mn-config, mn-gui).
+# Mininet itself needs only the Python standard library. Dependabot
+# proposes updates weekly; see SECURITY.md.
+PyYAML==6.0.3

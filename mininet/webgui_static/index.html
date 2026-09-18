@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Mininet Lab</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>Mininet Lab</h1>
+        <p id="lab-name" class="muted">loading...</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span id="status-pill" class="pill">...</span>
+      <button id="btn-start" class="primary" type="button">Start network</button>
+      <button id="btn-stop" type="button">Stop</button>
+      <button id="btn-pingall" type="button">Ping all</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" role="status" hidden></div>
+
+  <main class="layout">
+    <section class="panel topo-panel" aria-labelledby="topo-title">
+      <div class="panel-head">
+        <h2 id="topo-title">Topology</h2>
+        <div class="legend" aria-hidden="true">
+          <span><i class="lg host"></i>host</span>
+          <span><i class="lg switch"></i>switch</span>
+          <span><i class="lg controller"></i>controller</span>
+        </div>
+      </div>
+      <svg id="graph" role="img" aria-label="Network topology"
+           preserveAspectRatio="xMidYMid meet"></svg>
+      <p id="summary" class="summary muted"></p>
+    </section>
+
+    <section class="panel side-panel">
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-config" aria-selected="true" data-tab="config" type="button">Configuration</button>
+        <button role="tab" id="tab-console" aria-selected="false" data-tab="console" type="button">Console</button>
+        <button role="tab" id="tab-results" aria-selected="false" data-tab="results" type="button">Results</button>
+        <button role="tab" id="tab-guide" aria-selected="false" data-tab="guide" type="button">Guide</button>
+      </nav>
+
+      <div class="tab-body" id="pane-config" role="tabpanel" aria-labelledby="tab-config">
+        <p id="config-info" class="muted small"></p>
+        <textarea id="editor" spellcheck="false" autocomplete="off" wrap="off"
+                  aria-label="Configuration file"></textarea>
+        <div class="row">
+          <button id="btn-validate" type="button">Validate</button>
+          <button id="btn-save" class="primary" type="button">Save</button>
+          <button id="btn-reload" type="button">Reload from disk</button>
+          <span id="valid-state" class="small"></span>
+        </div>
+        <ul id="issues" class="issues"></ul>
+      </div>
+
+      <div class="tab-body" id="pane-console" role="tabpanel" aria-labelledby="tab-console" hidden>
+        <form id="exec-form" class="row">
+          <label class="sr" for="exec-node">Node</label>
+          <select id="exec-node"></select>
+          <label class="sr" for="exec-cmd">Command</label>
+          <input id="exec-cmd" type="text" placeholder="ip addr, ping -c3 10.0.0.2, ..."
+                 autocomplete="off" spellcheck="false">
+          <button class="primary" type="submit">Run</button>
+        </form>
+        <form id="iperf-form" class="row">
+          <span class="small muted">iperf</span>
+          <label class="sr" for="iperf-src">From</label>
+          <select id="iperf-src"></select>
+          <span class="small muted">to</span>
+          <label class="sr" for="iperf-dst">To</label>
+          <select id="iperf-dst"></select>
+          <button type="submit">Measure bandwidth</button>
+        </form>
+        <pre id="console" class="console" aria-live="polite"></pre>
+      </div>
+
+      <div class="tab-body" id="pane-results" role="tabpanel" aria-labelledby="tab-results" hidden>
+        <p class="muted small">Ping all: can each host (row) reach each other host (column)?</p>
+        <div id="ping-result"><p class="muted">Start the network and press <strong>Ping all</strong>.</p></div>
+      </div>
+
+      <div class="tab-body" id="pane-guide" role="tabpanel" aria-labelledby="tab-guide" hidden>
+        <p class="small">Every setting is in one of three groups. Change the
+          <strong>edit freely</strong> ones to build your lab; leave the
+          <strong>advanced</strong> ones alone unless you know why; never
+          change the <strong>do not edit</strong> ones. Full reference:
+          <code>docs/configuration.md</code>.</p>
+        <div id="guide"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="token-dialog">
+    <form method="dialog" id="token-form">
+      <h2>Access token</h2>
+      <p class="small">Open the full URL that <code>mn-gui</code> printed
+        (it ends in <code>#token=...</code>), or paste the token here.</p>
+      <label class="sr" for="token-input">Token</label>
+      <input id="token-input" type="password" autocomplete="off" required>
+      <div class="row"><button class="primary" type="submit">Connect</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

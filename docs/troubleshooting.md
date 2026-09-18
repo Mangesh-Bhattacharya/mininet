@@ -125,3 +125,37 @@ XQuartz and use `ssh -Y`, or skip GUI tools with plain `mn`.
 
 Still stuck? Open an issue with the output of `sudo mn-doctor --json` and
 `sudo mn -v debug --test pingall`.
+
+## Lab configurations and the GUI
+
+**`mn-config validate` reports problems.** Each one names the setting
+and gives a hint. `mn-config schema` lists every valid setting; see
+[configuration.md](configuration.md).
+
+**`C# configs need dotnet, which is not installed`** (or `java`, `cobc`,
+`ruby`). Install the toolchain (`mn-config languages` shows what's
+missing; [configuration.md](configuration.md#installing-language-toolchains)
+has the commands), use the `full` Docker image, or write the lab in YAML.
+
+**`reading YAML needs the PyYAML package`.** `sudo apt install
+python3-yaml`, or `pip install -r requirements.txt`, or use a `.json`
+config.
+
+**`dpid: must be up to 16 hex digits, quoted`.** YAML reads
+`dpid: 0000000000000010` as a number. Quote it: `dpid: "0000000000000010"`.
+
+**The GUI says "missing or wrong access token".** Open the complete URL
+`mn-gui` printed, including `#token=...`, or paste the token into the
+dialog. The token changes every time `mn-gui` starts (set
+`MININET_GUI_TOKEN` to keep one).
+
+**"unexpected Host header" (HTTP 421).** Browse to `localhost` or
+`127.0.0.1`. If you really need another name (for example a VM's host
+name on a trusted network), start `mn-gui --allow-host NAME`.
+
+**The GUI can't start the network: "needs root".** Restart it with
+`sudo mn-gui ...` (not needed inside the Docker container).
+
+**The browser can't reach the GUI in Docker.** Publish the port:
+`-p 127.0.0.1:8080:8080` (the launcher's `--gui` does this). In a VM,
+use an SSH tunnel: [gui.md](gui.md#a-virtual-machine).
