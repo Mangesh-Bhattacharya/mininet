@@ -59,10 +59,10 @@ machine-readable view of the environment.
 
 | Work | What it shows | Emulator | Relevance |
 |------|---------------|----------|-----------|
-| **MininetGym** (SoftwareX; `dipi-unimore/mininet-gym`) | Gymnasium environments on Mininet + OpenDaylight for traffic classification and DoS detection; Q-learning, SARSA, DQN, PPO, A2C, plus multi-agent (PettingZoo) | Mininet | RL on Mininet works; confirms the Gym pattern |
+| **MininetGym** (SoftwareX; `dipi-unimore/mininet-gym`) | Gymnasium environments on Mininet with OpenDaylight for traffic classification and DoS detection; Q-learning, SARSA, DQN, PPO, A2C, plus multi-agent (PettingZoo) | Mininet | RL on Mininet works; confirms the Gym pattern |
 | **sdn-marl** (`heysan1405/sdn-marl`) | Multi-agent RL routing baseline with Topology Zoo loader and monitoring | Mininet | Routing-focused RL on Mininet |
 | **InSDN** and later SDN IDS datasets | Labelled SDN attack traffic, including control-plane features | SDN testbeds | Training data and feature design for ML detectors |
-| **"Trust, But Verify"** (Soares et al., arXiv 2510.20703, 2025) | ChatGPT, Copilot, DeepSeek and BlackBox.ai generated POX controllers for three tasks, tested in Mininet. All tools could produce functional controllers; ChatGPT and DeepSeek were more consistent, the others needed more fixes | Mininet + POX | LLM output must be verified by emulation, which Mininet-AI automates |
+| **"Trust, But Verify"** (Soares et al., arXiv 2510.20703, 2025) | ChatGPT, Copilot, DeepSeek and BlackBox.ai generated POX controllers for three tasks, tested in Mininet. All tools could produce functional controllers; ChatGPT and DeepSeek were more consistent, the others needed more fixes | Mininet with POX | LLM output must be verified by emulation, which Mininet-AI automates |
 | **NetConfEval** (CoNEXT 2024 / PACMNET) | Benchmarks LLMs translating natural-language requirements into network configuration and code | Kathará (FRR: OSPF, RIP, BGP) | Methodology for scoring LLM config generation |
 | **NIKA** (Wang et al., arXiv 2512.16381, 2025) | 640 incidents across 54 issue types and 5 scenarios, agents use 30+ tools over **MCP**. GPT-5 reached 89% detection, 68.7% localization, 55.3% root-cause accuracy; smaller models far lower | Kathará | Closest template for an agent benchmark; shows root-cause analysis is still hard |
 | **Confucius** (Meta, SIGCOMM 2025) | Production multi-agent LLM framework for intent-driven network management, operating for two years with 60+ applications | Production | LLM network agents are viable at scale when paired with validation |
@@ -147,7 +147,7 @@ rule-based agent on the same scenarios.
 | Tool/MCP interface for LLM agents | **High** | NIKA uses MCP over an emulator; the Mininet Python API maps directly to tools | Designing a safe action set |
 | LLM troubleshooting and configuration agent | **High for detection, medium for root cause** | NIKA: strong detection, much lower RCA even for top models | Nondeterminism, cost, overconfident "fixes" (mitigated by checkers) |
 | LLM-generated controller code verified in Mininet | **High** | "Trust, But Verify" did this manually; can be automated | Code needs sandboxed execution |
-| ML intrusion/DDoS detection on live Mininet traffic | **High** | Many Mininet + controller + ML studies; InSDN-style features | Emulated traffic can be less diverse than real traffic |
+| ML intrusion/DDoS detection on live Mininet traffic | **High** | Many Mininet with controller + ML studies; InSDN-style features | Emulated traffic can be less diverse than real traffic |
 | RL routing / mitigation (Gym env) | **Medium-high** | MininetGym, sdn-marl | Slow wall-clock episodes; sim-to-real gap |
 | AI tutor for students | **High** | `mn-doctor --json` + CLI transcripts give grounded context | Must not give wrong fixes confidently; keep it grounded in checks |
 
