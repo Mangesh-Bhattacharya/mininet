@@ -1090,12 +1090,13 @@ class UserSwitch( Switch ):
 class OVSSwitch( Switch ):
     "Open vSwitch switch. Depends on ovs-vsctl."
 
-    def __init__( self, name, failMode='secure', datapath='kernel',
+    def __init__( self, name, failMode='secure', datapath=None,
                   inband=False, protocols=None,
                   reconnectms=1000, stp=False, batch=False, **params ):
         """name: name for switch
            failMode: controller loss behavior (secure|standalone)
            datapath: userspace or kernel mode (kernel|user)
+                     (default: see defaultDatapath())
            inband: use in-band control (False)
            protocols: use specific OpenFlow version(s) (e.g. OpenFlow13)
                       Unspecified (or old OVS version) uses OVS default
@@ -1104,7 +1105,7 @@ class OVSSwitch( Switch ):
            batch: enable batch startup (False)"""
         Switch.__init__( self, name, **params )
         self.failMode = failMode
-        self.datapath = datapath
+        self.datapath = datapath or self.defaultDatapath()
         self.inband = inband
         self.protocols = protocols
         self.reconnectms = reconnectms
@@ -1134,6 +1135,37 @@ class OVSSwitch( Switch ):
             exit( 1 )
         version = quietRun( 'ovs-vsctl --version' )
         cls.OVSVersion = findall( r'\d+\.\d+', version )[ 0 ]
+
+    _defaultDatapath = None
+
+    @classmethod
+    def defaultDatapath( cls ):
+        """Return the datapath to use when none is specified:
+           $MININET_OVS_DATAPATH if set; otherwise 'kernel' if the
+           openvswitch kernel module is loaded or loadable, or 'user'
+           (the OVS userspace datapath) if it is not, as is common in
+           Docker containers, WSL and some cloud/VM kernels."""
+        if cls._defaultDatapath is None:
+            datapath = os.environ.get( 'MININET_OVS_DATAPATH' )
+            if datapath not in ( 'kernel', 'user' ):
+                datapath = 'kernel'
+                if not cls.kernelDatapathAvailable():
+                    warn( '*** Open vSwitch kernel module unavailable: '
+                          'using userspace datapath (datapath=user)\n'
+                          '*** Set MININET_OVS_DATAPATH=kernel to '
+                          'override\n' )
+                    datapath = 'user'
+            cls._defaultDatapath = datapath
+        return cls._defaultDatapath
+
+    @staticmethod
+    def kernelDatapathAvailable():
+        "Is the openvswitch kernel module loaded (or loadable)?"
+        if os.path.exists( '/sys/module/openvswitch' ):
+            return True
+        # shell=True: a missing modprobe returns 127 rather than raising
+        _out, _err, exitcode = errRun( 'modprobe openvswitch', shell=True )
+        return exitcode == 0
 
     @classmethod
     def isOldOVS( cls ):

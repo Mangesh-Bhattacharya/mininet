@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python3
 
 """
 Translate from PEP8 Python style to Mininet (i.e. Arista-like)

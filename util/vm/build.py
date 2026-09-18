@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python3
 
 """
 build.py: build a Mininet VM
@@ -61,7 +61,7 @@ Chown = ''                  # Build directory owner
 
 VMImageDir = os.environ[ 'HOME' ] + '/vm-images'
 
-Prompt = '\$ '              # Shell prompt that pexpect will wait for
+Prompt = r'\$ '              # Shell prompt that pexpect will wait for
 
 
 # URLs for Ubuntu .iso images
@@ -829,7 +829,7 @@ def qcow2size( qcow2 ):
     output = check_output( [ 'qemu-img', 'info', qcow2 ] )
     try:
         assert 'format: qcow' in output
-        bytes = int( re.findall( '(\d+) bytes', output )[ 0 ] )
+        bytes = int( re.findall( r'(\d+) bytes', output )[ 0 ] )
     except:
         raise Exception( 'Could not determine size of %s' % qcow2 )
     return bytes

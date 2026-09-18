@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for intfOptions.py
@@ -12,12 +12,12 @@ class testIntfOptions( unittest.TestCase ):
 
     def testIntfOptions( self ):
         "verify that intf.config is correctly limiting traffic"
-        p = pexpect.spawn( 'python -m mininet.examples.intfoptions ' )
+        p = pexpect.spawn( 'python3 -m mininet.examples.intfoptions ' )
         tolerance = .25  # plus or minus 25% for cloud CI tests
-        opts = [ "Results: \['([\d\.]+) .bits/sec",
-                 "Results: \['10M', '([\d\.]+) .bits/sec",
-                 "h(\d+)->h(\d+): (\d)/(\d),"
-                 "rtt min/avg/max/mdev ([\d\.]+)/([\d\.]+)/([\d\.]+)/([\d\.]+) ms",
+        opts = [ r"Results: \['([\d\.]+) .bits/sec",
+                 r"Results: \['10M', '([\d\.]+) .bits/sec",
+                 r"h(\d+)->h(\d+): (\d)/(\d),"
+                 r"rtt min/avg/max/mdev ([\d\.]+)/([\d\.]+)/([\d\.]+)/([\d\.]+) ms",
                  pexpect.EOF ]
         while True:
             index = p.expect( opts, timeout=600 )

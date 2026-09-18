@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from subprocess import check_output as co
 from sys import exit, version_info
@@ -13,7 +13,7 @@ version = 'Mininet ' + run( 'PYTHONPATH=. bin/mn --version 2>&1', shell=True )
 version = version.strip()
 
 # Find all Mininet path references
-lines = run( "egrep -or 'Mininet [0-9\.\+]+\w*' *", shell=True )
+lines = run( r"egrep -or 'Mininet [0-9\.\+]+\w*' *", shell=True )
 
 error = False
 

@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <errno.h>
 
 #if !defined(VERSION)
 #define VERSION "(devel)"
@@ -59,7 +60,8 @@ void validate(char *path)
 {
     char *s;
     for (s=path; *s; s++) {
-        if (!isalnum(*s) && *s != '/') {
+        /* isalnum() needs an unsigned char value */
+        if (!isalnum((unsigned char)*s) && *s != '/') {
             fprintf(stderr, "invalid path: %s\n", path);
             exit(1);
         }
@@ -89,10 +91,36 @@ void cgroup(char *gname)
         }
     }
     if (!count) {
+        /* cgroup v2 (unified hierarchy, the default on current Linux
+           distributions): one group directory with a cgroup.procs file */
+        FILE *f;
+        snprintf(path, PATH_MAX, "/sys/fs/cgroup/%s/cgroup.procs", gname);
+        f = fopen(path, "w");
+        if (f) {
+            count++;
+            fprintf(f, "%d\n", pid);
+            fclose(f);
+        }
+    }
+    if (!count) {
         fprintf(stderr, "cgroup: could not add to cgroup %s\n",
             gname);
         exit(1);
     }
+}
+
+/* Parse a positive pid, or exit with an error */
+pid_t parsepid(const char *arg)
+{
+    char *end;
+    long value;
+    errno = 0;
+    value = strtol(arg, &end, 10);
+    if (errno || end == arg || *end || value <= 0 || value > INT_MAX) {
+        fprintf(stderr, "invalid pid: %s\n", arg);
+        exit(1);
+    }
+    return (pid_t)value;
 }
 
 int main(int argc, char *argv[])
@@ -112,9 +140,12 @@ int main(int argc, char *argv[])
         case 'c':
             /* close file descriptors except stdin/out/error */
             if ((dir = opendir("/proc/self/fd"))) {
+                /* don't close the directory we are reading */
+                int dirfd_ = dirfd(dir);
                 while ((de = readdir(dir)))
-                    if ((fd = atoi(de->d_name)) > 2)
+                    if ((fd = atoi(de->d_name)) > 2 && fd != dirfd_)
                         close(fd);
+                closedir(dir);
             }
             /* fall back to old method if needed */
             else for (fd = getdtablesize(); fd > 2; fd--)
@@ -164,9 +195,10 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             /* Attach to pid's network namespace and mount namespace */
-            pid = atoi(optarg);
-            sprintf(path, "/proc/%d/ns/net", pid);
-            nsid = open(path, O_RDONLY);
+            pid = parsepid(optarg);
+            snprintf(path, sizeof(path), "/proc/%d/ns/net", pid);
+            /* O_CLOEXEC: don't leak namespace fds into the command */
+            nsid = open(path, O_RDONLY | O_CLOEXEC);
             if (nsid < 0) {
                 perror(path);
                 return 1;
@@ -175,18 +207,25 @@ int main(int argc, char *argv[])
                 perror("setns");
                 return 1;
             }
+            close(nsid);
             /* Plan A: call setns() to attach to mount namespace */
-            sprintf(path, "/proc/%d/ns/mnt", pid);
-            nsid = open(path, O_RDONLY);
+            snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+            nsid = open(path, O_RDONLY | O_CLOEXEC);
             if (nsid < 0 || setns(nsid, 0) != 0) {
                 /* Plan B: chroot/chdir into pid's root file system */
-                sprintf(path, "/proc/%d/root", pid);
+                snprintf(path, sizeof(path), "/proc/%d/root", pid);
                 if (chroot(path) < 0) {
                     perror(path);
                     return 1;
                 }
             }
+            if (nsid >= 0)
+                close(nsid);
             /* chdir to correct working directory */
+            if (!cwd) {
+                perror("getcwd");
+                return 1;
+            }
             if (chdir(cwd) != 0) {
                 perror(cwd);
                 return 1;

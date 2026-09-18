@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Custom topology example
 
 Two directly connected switches plus a host for each switch:

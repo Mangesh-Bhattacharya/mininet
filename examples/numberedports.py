@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Create a network with 5 hosts, numbered 1-4 and 9.

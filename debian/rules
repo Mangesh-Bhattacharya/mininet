@@ -1,12 +1,23 @@
 #!/usr/bin/make -f
 
+export PYBUILD_NAME = mininet
+# mnexec runs as root: enable every hardening option
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
 %:
-	dh $@ --buildsystem=python_distutils --with=python2 
+	dh $@ --with python3 --buildsystem=pybuild
 
 override_dh_auto_build:
-	make man
-	make mnexec
+	$(MAKE) PYTHON=python3 mnexec man
 	dh_auto_build
+
+override_dh_auto_test:
+	# Mininet's tests need root and network namespaces; CI runs them
+	# against the installed package instead
+
+override_dh_auto_clean:
+	dh_auto_clean
+	$(MAKE) clean
 
 get-orig-source:
 	uscan --force-download --rename

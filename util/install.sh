@@ -11,6 +11,18 @@ set -o nounset
 
 # Get directory containing mininet folder
 MININET_DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P )"
+# Mininet source tree itself (works whatever the checkout is named)
+REPO_DIR="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P )"
+
+# Allow running as root without sudo (e.g. in Docker containers)
+if ! command -v sudo &> /dev/null; then
+    if [ "$(id -u)" -eq 0 ]; then
+        function sudo { env "$@"; }
+    else
+        echo "sudo is required when not running as root"
+        exit 1
+    fi
+fi
 
 # Set up build directory, which by default is the working directory
 #  unless the working directory is a subdirectory of mininet,
@@ -41,9 +53,9 @@ if [ "$DIST" = "Ubuntu" ] || [ "$DIST" = "Debian" ]; then
     remove='sudo DEBIAN_FRONTEND=noninteractive apt-get -y -q remove'
     pkginst='sudo dpkg -i'
     update='sudo apt-get'
-    # Prereqs for this script
-    if ! which lsb_release &> /dev/null; then
-        $install lsb-release
+    # Fresh containers/cloud images may have empty package lists
+    if ! ls /var/lib/apt/lists/*_Packages* &> /dev/null; then
+        $update update
     fi
 fi
 test -e /etc/fedora-release && DIST="Fedora"
@@ -68,10 +80,33 @@ if [ "$DIST" = "SUSE Linux" ]; then
 		$install openSUSE-release
     fi
 fi
-if which lsb_release &> /dev/null; then
+if [ -r /etc/os-release ]; then
+    # /etc/os-release is present on all current distributions,
+    # including minimal containers that lack lsb_release
+    OS_ID=$(. /etc/os-release; echo "${ID:-}")
+    OS_LIKE=$(. /etc/os-release; echo "${ID_LIKE:-}")
+    case "$OS_ID" in
+        ubuntu) DIST=Ubuntu;;
+        debian|raspbian) DIST=Debian;;
+        fedora) DIST=Fedora;;
+        rhel|centos|rocky|almalinux) DIST=RedHatEnterpriseServer;;
+        *) case "$OS_LIKE" in
+               *ubuntu*) DIST=Ubuntu;;
+               *debian*) DIST=Debian;;
+           esac;;
+    esac
+    RELEASE=$(. /etc/os-release; echo "${VERSION_ID:-Unknown}")
+    CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME:-Unknown}")
+elif which lsb_release &> /dev/null; then
     DIST=`lsb_release -is`
     RELEASE=`lsb_release -rs`
     CODENAME=`lsb_release -cs`
+fi
+if grep -qi microsoft /proc/version 2> /dev/null; then
+    echo "Detected Windows Subsystem for Linux (WSL)"
+fi
+if [ -e /.dockerenv ] || [ -e /run/.containerenv ]; then
+    echo "Detected container environment"
 fi
 echo "Detected Linux distribution: $DIST $RELEASE $CODENAME $ARCH"
 
@@ -102,11 +137,21 @@ function version_ge {
     [ "$1" == "$latest" ]
 }
 
-# Attempt to detect Python version
-PYTHON=${PYTHON:-python}
+# Determine whether version $1 <= version $2
+function version_le {
+    version_ge $2 $1
+}
+
+# Attempt to detect Python version (Python 3 preferred)
+PYTHON=${PYTHON:-python3}
+# Minimal container images (ubuntu, debian) ship without Python
+if [ "$DIST" = "Ubuntu" -o "$DIST" = "Debian" ] &&
+   ! command -v $PYTHON &> /dev/null && ! command -v python3 &> /dev/null; then
+    $install python3
+fi
 PRINTVERSION='import sys; print(sys.version_info)'
 PYTHON_VERSION=unknown
-for python in $PYTHON python2 python3; do
+for python in $PYTHON python3 python python2; do
     if $python -c "$PRINTVERSION" |& grep 'major=2'; then
         PYTHON=$python; PYTHON_VERSION=2; PYPKG=python
         break
@@ -164,7 +209,7 @@ function mn_deps {
     if [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
         $install gcc make socat psmisc xterm openssh-clients iperf \
             iproute telnet python-setuptools libcgroup-tools \
-            ethtool help2man net-tools
+            ethtool help2man net-tools bridge-utils iputils
         $install ${PYPKG}-pyflakes pylint ${PYPKG}-pep8-naming \
             ${PYPKG}-pexpect
     elif [ "$DIST" = "SUSE LINUX"  ]; then
@@ -189,8 +234,14 @@ function mn_deps {
         fi
 
         $install gcc make socat psmisc xterm ssh iperf telnet \
-                 ethtool help2man $pf pylint $pep8 \
-                 net-tools ${PYPKG}-tk
+                 ethtool help2man net-tools bridge-utils iputils-ping \
+                 ${PYPKG}-tk
+
+        # Code check tools are only needed for development, and their
+        # package names keep changing (pep8 is now pycodestyle), so
+        # don't let them break the install
+        $install $pf pylint $pep8 || $install $pf pylint pycodestyle || \
+            echo "Skipping optional code check tools"
 
         # Install pip
         $install ${PYPKG}-pip || $install ${PYPKG}-pip-whl
@@ -203,15 +254,19 @@ function mn_deps {
             sudo ${PYTHON} get-pip.py
             rm get-pip.py
         fi
-       ${python} -m pip install pexpect
+        $install ${PYPKG}-pexpect || sudo ${PYTHON} -m pip install pexpect
         $install iproute2 || $install iproute
         $install cgroup-tools || $install cgroup-bin
-        $install cgroupfs-mount
+        # cgroupfs-mount is gone from newer releases (cgroups v2)
+        $install cgroupfs-mount || echo "Skipping cgroupfs-mount"
     fi
 
     echo "Installing Mininet core"
-    pushd $MININET_DIR/mininet
-    sudo PYTHON=${PYTHON} make install
+    pushd $REPO_DIR
+    # Mininet runs as root, so it is installed into the system Python.
+    # Ubuntu 23.04+/Debian 12+ mark that Python as externally managed
+    # (PEP 668); PIP_BREAK_SYSTEM_PACKAGES allows the install there.
+    sudo PIP_BREAK_SYSTEM_PACKAGES=1 PYTHON=${PYTHON} make install
     popd
 }
 
@@ -222,7 +277,8 @@ function mn_doc {
     if ! $install doxygen-latex; then
         echo "doxygen-latex not needed"
     fi
-    sudo pip2 install doxypy
+    # doxygen reads Python itself; util/doxify.py only adapts
+    # Mininet's docstring style (doxypy, which needed Python 2, is gone)
 }
 
 # The following will cause a full OF install, covering:
@@ -246,11 +302,16 @@ function of {
     cd $BUILD_DIR/openflow
 
     # Patch controller to handle more than 16 switches
-    patch -p1 < $MININET_DIR/mininet/util/openflow-patches/controller.patch
+    patch -p1 < $REPO_DIR/util/openflow-patches/controller.patch
+
+    # glibc 2.38+ declares strlcpy() itself: rename OpenFlow's copy.
+    # gcc 10+ defaults to -fno-common, which this old code relies on.
+    grep -rlw strlcpy --include='*.[ch]' . | \
+        xargs -r sed -i 's/\bstrlcpy\b/of_strlcpy/g'
 
     # Resume the install:
     ./boot.sh
-    ./configure
+    ./configure CFLAGS="-g -O2 -fcommon"
     make
     sudo make install
     cd $BUILD_DIR
@@ -314,7 +375,7 @@ function install_wireshark {
     # Copy coloring rules: OF is white-on-blue:
     echo "Optionally installing wireshark color filters"
     mkdir -p $HOME/.wireshark
-    cp -n $MININET_DIR/mininet/util/colorfilters $HOME/.wireshark
+    cp -n $REPO_DIR/util/colorfilters $HOME/.wireshark
 
     echo "Checking Wireshark version"
     WSVER=`wireshark -v | egrep -o '[0-9\.]+' | head -1`
@@ -350,7 +411,7 @@ function ubuntuOvs {
 
     if ! echo "$DIST" | egrep "Ubuntu|Debian" > /dev/null; then
         echo "OS must be Ubuntu or Debian"
-        $cd BUILD_DIR
+        cd $BUILD_DIR
         return
     fi
     if [ "$DIST" = "Ubuntu" ] && ! version_ge $RELEASE 12.04; then
@@ -464,6 +525,12 @@ function ovs {
             sudo update-rc.d $OVSC disable
         fi
     fi
+    # Without systemd (containers, some WSL setups) OVS isn't started
+    # automatically by the package; try to start it ourselves
+    if ! sudo ovs-vsctl -t 2 show &> /dev/null; then
+        sudo service openvswitch-switch start || \
+            echo "Could not start Open vSwitch; see docs/troubleshooting.md"
+    fi
     # This service seems to hang on 20.04
     if systemctl list-units | \
             grep status netplan-ovs-cleanup.service>&/dev/null; then
@@ -568,9 +635,9 @@ function nox {
 
     # Apply patches
     git checkout -b tutorial-destiny
-    git am $MININET_DIR/mininet/util/nox-patches/*tutorial-port-nox-destiny*.patch
+    git am $REPO_DIR/util/nox-patches/*tutorial-port-nox-destiny*.patch
     if [ "$DIST" = "Ubuntu" ] && version_ge $RELEASE 12.04; then
-        git am $MININET_DIR/mininet/util/nox-patches/*nox-ubuntu12-hacks.patch
+        git am $REPO_DIR/util/nox-patches/*nox-ubuntu12-hacks.patch
     fi
 
     # Build
@@ -714,13 +781,15 @@ net.ipv6.conf.lo.disable_ipv6 = 1' | sudo tee -a /etc/sysctl.conf > /dev/null
 
     # Install tcpdump, cmd-line packet dump tool.  Also install gitk,
     # a graphical git history viewer.
-    $install tcpdump gitk
+    $install tcpdump
+    $install gitk || echo "Skipping gitk"
 
     # Install common text editors
-    $install vim nano emacs
+    $install vim nano || echo "Skipping editors"
+    $install emacs || echo "Skipping emacs"
 
-    # Install NTP
-    $install ntp
+    # Install NTP (replaced by ntpsec/timesyncd on newer releases)
+    $install ntp || $install systemd-timesyncd || echo "Skipping NTP"
 
     # Install vconfig for VLAN example
     if [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
@@ -845,7 +914,7 @@ function usage {
     printf '\nUsage: %s [-abcdefhikmnprtvVwxy03]\n\n' $(basename $0) >&2
 
     printf 'This install script attempts to install useful packages\n' >&2
-    printf 'for Mininet. It should (hopefully) work on Ubuntu 11.10+\n' >&2
+    printf 'for Mininet. It is tested on Ubuntu 22.04/24.04 and Debian 12/13\n' >&2
     printf 'If you run into trouble, try\n' >&2
     printf 'installing one thing at a time, and looking at the \n' >&2
     printf 'specific installation function in this script.\n\n' >&2
@@ -861,7 +930,7 @@ function usage {
     printf -- ' -i: install (I)ndigo Virtual Switch\n' >&2
     printf -- ' -k: install new (K)ernel\n' >&2
     printf -- ' -m: install Open vSwitch kernel (M)odule from source dir\n' >&2
-    printf -- ' -n: install Mini(N)et dependencies + core files\n' >&2
+    printf -- ' -n: install Mini(N)et dependencies + core files (recommended: -nv)\n' >&2
     printf -- ' -p: install (P)OX OpenFlow Controller\n' >&2
     printf -- ' -r: remove existing Open vSwitch packages\n' >&2
     printf -- ' -s <dir>: place dependency (S)ource/build trees in <dir>\n' >&2

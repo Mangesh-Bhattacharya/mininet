@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Tests for controllers.py and controllers2.py
@@ -13,23 +13,24 @@ class testControllers( unittest.TestCase ):
 
     def connectedTest( self, name, cmap ):
         "Verify that switches are connected to the controller specified by cmap"
-        p = pexpect.spawn( 'python -m %s' % name )
+        p = pexpect.spawn( 'python3 -m %s' % name )
         p.expect( self.prompt )
         # but first a simple ping test
         p.sendline( 'pingall' )
-        p.expect ( '(\d+)% dropped' )
+        p.expect ( r'(\d+)% dropped' )
         percent = int( p.match.group( 1 ) ) if p.match else -1
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         # verify connected controller
         for switch in cmap:
             p.sendline( 'sh ovs-vsctl get-controller %s' % switch )
-            p.expect( 'tcp:([\d.:]+)')
+            p.expect( r'tcp:([\d.:]+)')
             actual = p.match.group(1)
             expected = cmap[ switch ]
             self.assertEqual( actual, expected )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testControllers( self ):
