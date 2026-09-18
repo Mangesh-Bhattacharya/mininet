@@ -10,6 +10,8 @@ TOKEN="ci-$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
 WORK="$(mktemp -d)"
 cd "$WORK"
 
+# The log is written by us, not root, on purpose
+# shellcheck disable=SC2024
 sudo env MININET_GUI_TOKEN="$TOKEN" mn-gui --config lab.yaml \
     --port "$PORT" > gui.log 2>&1 &
 PID=$!
