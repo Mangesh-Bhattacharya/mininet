@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for hwintf.py
@@ -26,22 +26,23 @@ class testHwintf( unittest.TestCase ):
 
     def testLocalPing( self ):
         "Verify connectivity between virtual hosts using pingall"
-        p = pexpect.spawn( 'python -m mininet.examples.hwintf %s' % self.n0.intf() )
+        p = pexpect.spawn( 'python3 -m mininet.examples.hwintf %s' % self.n0.intf() )
         p.expect( self.prompt )
         p.sendline( 'pingall' )
-        p.expect ( '(\d+)% dropped' )
+        p.expect ( r'(\d+)% dropped' )
         percent = int( p.match.group( 1 ) ) if p.match else -1
         self.assertEqual( percent, 0 )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testExternalPing( self ):
         "Verify connnectivity between virtual host and virtual-physical 'external' host "
-        p = pexpect.spawn( 'python -m mininet.examples.hwintf %s' % self.n0.intf() )
+        p = pexpect.spawn( 'python3 -m mininet.examples.hwintf %s' % self.n0.intf() )
         p.expect( self.prompt )
         # test ping external to internal
-        expectStr = '(\d+) packets transmitted, (\d+) received'
+        expectStr = r'(\d+) packets transmitted, (\d+) received'
         m = re.search( expectStr, self.h3.cmd( 'ping -v -c 1 10.0.0.1' ) )
         tx = m.group( 1 )
         rx = m.group( 2 )
@@ -54,6 +55,7 @@ class testHwintf( unittest.TestCase ):
         self.assertEqual( tx, rx )
         p.expect( self.prompt )
         p.sendline( 'exit' )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def tearDown( self ):

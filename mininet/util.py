@@ -55,12 +55,29 @@ else:
         "Return null codec for Python 2"
         return NullCodec
 
+def _simpleVersion( version ):
+    """Minimal version parser used when neither packaging nor
+       distutils is available (e.g. Python 3.12+ without the
+       python3-packaging package). Returns a comparable tuple
+       of the leading numeric components: '2.17.9~rc1' -> (2, 17, 9)"""
+    parts = []
+    for part in re.split( r'[.\-+~]', str( version ) ):
+        match = re.match( r'\d+', part )
+        if not match:
+            break
+        parts.append( int( match.group() ) )
+    return tuple( parts )
+
+
 try:
     import packaging.version  # replacement for distutils.version
     StrictVersion = packaging.version.parse
 except ImportError:  # python2.7 lacks ModuleNotFoundError
-    import distutils.version  # pylint: disable=deprecated-module
-    StrictVersion = distutils.version.StrictVersion
+    try:
+        import distutils.version  # pylint: disable=deprecated-module
+        StrictVersion = distutils.version.StrictVersion
+    except ImportError:  # Python 3.12+ removed distutils
+        StrictVersion = _simpleVersion
 
 try:
     oldpexpect = None

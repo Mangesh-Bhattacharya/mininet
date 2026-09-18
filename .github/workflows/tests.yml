@@ -1,0 +1,209 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so breakage from new runner images or dependencies shows up
+    # even when nobody pushes
+    - cron: "0 6 * * 1"
+
+concurrency:
+  # A newer commit cancels runs for older commits on the same branch/PR
+  # (never the weekly scheduled runs)
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Import Mininet modules (no packaging/distutils/PyYAML)
+        run: python -c "import mininet.net, mininet.node, mininet.cli, mininet.doctor, mininet.labconfig, mininet.webgui; print('imports ok')"
+      - name: Install PyYAML
+        run: python -m pip install -r requirements.txt
+      - name: Unit tests (mn-doctor, mn-config, mn-gui)
+        run: python -m unittest -v mininet.test.test_doctor mininet.test.test_labconfig mininet.test.test_webgui
+
+  native:
+    name: Mininet on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Mininet and Open vSwitch with install.sh
+        run: |
+          sudo apt-get update -qq
+          util/install.sh -nv
+      - name: Disable slow udevd
+        run: sudo systemctl stop systemd-udevd
+             systemd-udevd-kernel.socket
+             systemd-udevd-control.socket
+             || echo "couldn't disable udevd"
+      - name: mn-doctor
+        run: sudo mn-doctor
+      - name: Sanity test (OVS kernel datapath + default controller)
+        run: sudo mn --test pingall
+      - name: Sanity test (OVS userspace datapath, as on Docker Desktop)
+        run: sudo env MININET_OVS_DATAPATH=user mn --test pingall
+      - name: Sanity test (Linux bridge, no controller)
+        run: sudo mn --switch lxbr --controller none --test pingall
+      - name: Sanity test (tree topology, TCLink)
+        run: sudo mn --topo tree,depth=2,fanout=2 --link tc,bw=10,delay=5ms --test pingall
+      - name: Lab configuration (YAML template, shaped link, pingall)
+        run: |
+          cd "$RUNNER_TEMP"
+          mn-config init --lang yaml -o lab.yaml
+          mn-config validate lab.yaml
+          sudo mn-config run lab.yaml --no-cli
+      - name: Browser GUI end to end (mn-gui API)
+        run: scripts/ci/gui-smoke-test.sh
+      - name: Install core test dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq vlan tshark
+          util/install.sh -f
+      - name: Run core tests
+        run: sudo python3 mininet/test/runner.py -v
+
+  languages:
+    name: Lab configurations in every language
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install Mininet, Ruby and GnuCOBOL
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq ruby gnucobol
+          util/install.sh -nv
+      - name: Toolchains
+        run: mn-config languages
+      - name: Every template validates (as the runner user)
+        run: python3 -m unittest -v mininet.test.test_labconfig.TemplateTests
+      - name: Every template runs a real network (config programs run as the runner user, not root)
+        run: |
+          cd "$RUNNER_TEMP"
+          for spec in yaml:lab.yaml json:lab.json python:lab.py c:lab.c \
+                      cpp:lab.cpp csharp:lab.cs java:Lab.java ruby:lab.rb \
+                      cobol:lab.cob; do
+            lang=${spec%%:*} file=${spec#*:}
+            echo "::group::$lang ($file)"
+            mn-config init --lang "$lang" -o "$file" --force
+            # sudo resets PATH; keep it so dotnet/java from setup-* are found
+            sudo env "PATH=$PATH" mn-config run "$file" --no-cli
+            echo "::endgroup::"
+          done
+
+  debian-package:
+    name: Debian package (build, install, run)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq \
+            build-essential debhelper dh-python dpkg-dev help2man python3-all python3-setuptools lintian
+      - name: Build the .deb
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist && mv ../mininet_*.deb dist/
+          ls -l dist
+      - name: Lintian (report only)
+        run: lintian --info dist/*.deb || true
+      - name: Install the .deb and run a network from it
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq ./dist/mininet_*.deb
+          cd /tmp
+          mnexec -v
+          sudo mn-doctor
+          sudo mn --test pingall
+          mn-config init -o lab.yaml
+          sudo mn-config run lab.yaml --no-cli
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mininet-deb
+          path: dist/*.deb
+
+  examples:
+    name: Example tests (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Mininet, Open vSwitch and the reference switch
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq vlan
+          util/install.sh -nvf
+      - name: Disable slow udevd
+        run: sudo systemctl stop systemd-udevd
+             systemd-udevd-kernel.socket
+             systemd-udevd-control.socket
+             || echo "couldn't disable udevd"
+      - name: Run examples tests (each file under a time limit)
+        timeout-minutes: 120
+        run: |
+          # One file at a time, so a hung example can't stall the job and
+          # the log says exactly which one failed
+          failed=""
+          for t in examples/test/test_*.py; do
+            echo "::group::$t"
+            limit=600
+            # 1024 hosts legitimately take a while to start and stop
+            case "$t" in *tree1024*) limit=2700;; esac
+            if ! sudo timeout --kill-after=30 "$limit" python3 "$t" -v; then
+              failed="$failed $t"
+            fi
+            sudo mn -c > /dev/null 2>&1 || true
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::failed or timed out:$failed"
+            exit 1
+          fi
+
+  tutorial-vm:
+    name: Tutorial VM script (ubuntu-24.04)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Run util/vm/install-mininet-vm.sh on a fresh runner
+        run: |
+          curl -fsSL -o install-mininet-vm.sh \
+            "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/util/vm/install-mininet-vm.sh"
+          chmod +x install-mininet-vm.sh
+          MININET_REPO="https://github.com/${{ github.repository }}.git" \
+            ./install-mininet-vm.sh ${{ github.sha }}

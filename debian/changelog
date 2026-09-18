@@ -1,3 +1,17 @@
+mininet (2.3.1~b4-1) unstable; urgency=medium
+
+  * Cross-platform fork refresh (github.com/Mangesh-Bhattacharya/mininet):
+    - Build with Python 3 and pybuild, debhelper compat 13; drop
+      Python 2 and debian/compat.
+    - Ship mn-doctor, mn-config and mn-gui with the lab configuration
+      templates and GUI files.
+    - Depend on current package names (iproute2, net-tools,
+      openvswitch-testcontroller, cgroup-tools); recommend python3-yaml.
+    - Build mnexec with all hardening flags.
+    - Machine-readable copyright with the current BSD-3-Clause license.
+
+ -- Mangesh Bhattacharya <84471637+Mangesh-Bhattacharya@users.noreply.github.com>  Fri, 18 Sep 2026 18:00:00 +0000
+
 mininet (2.1.0-0ubuntu1) saucy; urgency=low
 
   * Add 2.1.0 final packaging

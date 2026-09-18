@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for scratchnet.py
@@ -13,9 +13,10 @@ class testScratchNet( unittest.TestCase ):
 
     def pingTest( self, name ):
         "Verify that no ping packets were dropped"
-        p = pexpect.spawn( 'python -m %s' % name )
+        p = pexpect.spawn( 'python3 -m %s' % name )
         index = p.expect( self.opts, timeout=120 )
         self.assertEqual( index, 0 )
+        p.expect( pexpect.EOF, timeout=300 )
         p.wait()
 
     def testPingKernel( self ):

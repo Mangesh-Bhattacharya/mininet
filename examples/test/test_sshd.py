@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Test for sshd.py
@@ -10,13 +10,14 @@ from mininet.clean import sh
 
 class testSSHD( unittest.TestCase ):
 
-    opts = [ '\(yes/no\)\?', 'refused', 'Welcome|\$|#', pexpect.EOF, pexpect.TIMEOUT ]
+    opts = [ r'\(yes/no\)\?', 'refused', r'Welcome|\$|#', pexpect.EOF, pexpect.TIMEOUT ]
 
     def connected( self, ip ):
         "Log into ssh server, check banner, then exit"
         # Note: this test will fail if "Welcome" is not in the sshd banner
         # and '#'' or '$'' are not in the prompt
-        ssh = 'ssh -o StrictHostKeyChecking=no -i /tmp/ssh/test_rsa ' + ip
+        ssh = ( 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+                '-o BatchMode=yes -o ConnectTimeout=5 -i /tmp/ssh/test_rsa ' + ip )
         p = pexpect.spawn( ssh, timeout=5 )
         while True:
             index = p.expect( self.opts )
@@ -27,7 +28,7 @@ class testSSHD( unittest.TestCase ):
                 return False
             elif index == 2:
                 p.sendline( 'exit' )
-                p.wait()
+                p.expect( pexpect.EOF )
                 return True
             else:
                 return False
@@ -38,7 +39,7 @@ class testSSHD( unittest.TestCase ):
         sh( 'mkdir /tmp/ssh' )
         sh( "ssh-keygen -t rsa -P '' -f /tmp/ssh/test_rsa" )
         sh( 'cat /tmp/ssh/test_rsa.pub >> /tmp/ssh/authorized_keys' )
-        cmd = ( 'python -m mininet.examples.sshd -D '
+        cmd = ( 'python3 -m mininet.examples.sshd -D '
                 '-o AuthorizedKeysFile=/tmp/ssh/authorized_keys '
                 '-o StrictModes=no -o UseDNS=no -u0' )
         # run example with custom sshd args
@@ -52,6 +53,9 @@ class testSSHD( unittest.TestCase ):
 
     def tearDown( self ):
         self.net.sendline( 'exit' )
+        # Read until the example exits: wait() alone can deadlock once
+        # its output fills the pty buffer
+        self.net.expect( pexpect.EOF, timeout=120 )
         self.net.wait()
         # remove public key pair
         sh( 'rm -rf /tmp/ssh' )

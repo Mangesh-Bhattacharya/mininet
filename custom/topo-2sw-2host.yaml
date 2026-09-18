@@ -1,0 +1,26 @@
+# The network from topo-2sw-2host.py as a lab configuration:
+#
+#   h1 --- s3 --- s4 --- h2
+#
+#   mn-config validate custom/topo-2sw-2host.yaml
+#   sudo mn-config run custom/topo-2sw-2host.yaml
+#
+# Every setting is explained in docs/configuration.md.
+
+version: 1                 # [FIXED]
+name: two-switch-custom    # [EDIT]
+
+hosts:
+  - { name: h1 }
+  - { name: h2 }
+
+switches:
+  - { name: s3 }
+  - { name: s4 }
+
+links:
+  - [h1, s3]
+  - [s3, s4]
+  - [s4, h2]
+
+tests: [pingall]

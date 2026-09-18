@@ -79,3 +79,11 @@ Zhuo
 Thanks also to everyone who has submitted issues and pull
 requests on github, and to our friendly mininet-discuss
 mailing list!
+
+Cross-platform fork (github.com/Mangesh-Bhattacharya/mininet)
+--------------------------------------------------------------
+
+Mangesh Bhattacharya: Linux/Debian, Windows (WSL 2), macOS, Docker
+and virtual machine support; mn-doctor; lab configuration files in
+nine languages (mn-config); the browser GUI (mn-gui); Debian
+packaging refresh; automated weekly security patching.

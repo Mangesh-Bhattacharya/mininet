@@ -1,0 +1,52 @@
+# Weekly dependency and security updates (see SECURITY.md).
+#
+# Every Monday Dependabot opens pull requests for:
+#   - GitHub Actions (pinned to commit SHAs in .github/workflows)
+#   - the Ubuntu base image digest in the Dockerfile
+#   - Python packages in requirements*.txt
+# CI (tests, install matrix, Docker build + Trivy scan, CodeQL) runs on
+# each one. Security fixes are opened immediately, not only on Mondays,
+# once "Dependabot security updates" is enabled in the repository.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    commit-message:
+      prefix: docker
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    groups:
+      python:
+        patterns: ["*"]
+    ignore:
+      # Kept at 2.15.x until the upstream code base passes newer pylint
+      # (security updates are still proposed)
+      - dependency-name: pylint
+        update-types: [version-update:semver-major, version-update:semver-minor]
+    commit-message:
+      prefix: deps

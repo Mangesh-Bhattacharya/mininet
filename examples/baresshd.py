@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 "This example doesn't use OpenFlow, but attempts to run sshd in a namespace."
 
 import sys
 
 from mininet.node import Host
-from mininet.util import ensureRoot, waitListening
+from mininet.util import ensureRoot, waitListening, quietRun
 from mininet.log import info, warn, output
 
 
@@ -31,6 +31,9 @@ with open( '/tmp/%s.banner' % h1.name, 'w' ) as f:
     f.write( 'Welcome to %s at %s\n' % ( h1.name, h1.IP() ) )
 
 info( "*** Running sshd\n" )
+# sshd refuses to start without its privilege separation directory,
+# which current distributions only create when the ssh service runs
+quietRun( 'mkdir -p -m 0755 /run/sshd' )
 cmd = '/usr/sbin/sshd -o UseDNS=no -u0 -o "Banner /tmp/%s.banner"' % h1.name
 # add arguments from the command line
 if len( sys.argv ) > 1:

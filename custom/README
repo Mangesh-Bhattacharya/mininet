@@ -1,6 +1,31 @@
-This directory should hold configuration files for custom mininets.
+Custom topologies
+=================
 
-See custom_example.py, which loads the default minimal topology.  The advantage of defining a mininet in a separate file is that you then use the --custom option in mn to run the CLI or specific tests with it.
+Put your own topology files in this directory. There are two ways to
+describe one:
 
-To start up a mininet with the provided custom topology, do:
-  sudo mn --custom custom_example.py --topo mytopo
+1. A lab configuration file (YAML, JSON, Python, C, C++, C#, Java,
+   Ruby or COBOL) - no Mininet programming needed:
+
+     mn-config validate custom/topo-2sw-2host.yaml
+     sudo mn-config run custom/topo-2sw-2host.yaml
+
+   or edit and run it in the browser:
+
+     sudo mn-gui --config custom/topo-2sw-2host.yaml
+
+   Start a new one with `mn-config init --lang yaml -o custom/mylab.yaml`.
+   See docs/configuration.md.
+
+2. A Python Topo class, loaded with `mn --custom`:
+
+     sudo mn --custom custom/topo-2sw-2host.py --topo mytopo
+
+   The file defines a `topos` dictionary mapping names to topology
+   constructors, so you can then use the Mininet CLI or tests with it:
+
+     sudo mn --custom custom/topo-2sw-2host.py --topo mytopo --test pingall
+
+Both files in this directory describe the same network:
+
+   h1 --- s3 --- s4 --- h2

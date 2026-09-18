@@ -1,0 +1,41 @@
+# docker compose run --rm mininet                   interactive shell
+# docker compose run --rm mininet mn --test pingall
+# docker compose up gui                             browser GUI on
+#                                                   http://localhost:8080
+#
+# Your lab files live in ./workspace (mounted at /workspace).
+#
+# On Linux hosts, uncomment the /lib/modules mount so the container can
+# use the host's fast openvswitch kernel datapath. Docker Desktop
+# (Windows/macOS) doesn't need it: OVS falls back to its userspace datapath.
+#
+# Use the image with every configuration language (Java, C#, COBOL too):
+#   MININET_TAG=full docker compose up gui
+services:
+  mininet:
+    image: ghcr.io/mangesh-bhattacharya/mininet:${MININET_TAG:-latest}
+    build: .
+    privileged: true
+    hostname: mininet
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./workspace:/workspace
+      # - /lib/modules:/lib/modules:ro
+
+  gui:
+    image: ghcr.io/mangesh-bhattacharya/mininet:${MININET_TAG:-latest}
+    build: .
+    privileged: true
+    hostname: mininet-gui
+    # Creates ./workspace/lab.yaml from the template on first start.
+    # The access URL (with its token) is printed in the log:
+    #   docker compose logs gui
+    command: mn-gui --config /workspace/lab.yaml
+    ports:
+      # Loopback only: anyone who can reach this port and has the token
+      # can run commands as root inside the emulated hosts
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./workspace:/workspace
+      # - /lib/modules:/lib/modules:ro

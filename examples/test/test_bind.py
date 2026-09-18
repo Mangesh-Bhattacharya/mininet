@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Tests for bind.py
@@ -12,8 +12,8 @@ class testBind( unittest.TestCase ):
     prompt = 'mininet>'
 
     def setUp( self ):
-        self.net = pexpect.spawn( 'python -m mininet.examples.bind' )
-        self.net.expect( "Private Directories: \[([\w\s,'/]+)\]" )
+        self.net = pexpect.spawn( 'python3 -m mininet.examples.bind' )
+        self.net.expect( r"Private Directories: \[([\w\s,'/]+)\]" )
         self.directories = []
         # parse directories from mn output
         for d in self.net.match.group(1).split(', '):
@@ -60,6 +60,7 @@ class testBind( unittest.TestCase ):
 
     def tearDown( self ):
         self.net.sendline( 'exit' )
+        self.net.expect( pexpect.EOF, timeout=300 )
         self.net.wait()
 
 if __name__ == '__main__':
