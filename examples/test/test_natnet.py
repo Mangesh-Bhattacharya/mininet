@@ -14,7 +14,10 @@ class testNATNet( unittest.TestCase ):
 
     def setUp( self ):
         self.net = pexpect.spawn( 'python3 -m mininet.examples.natnet' )
-        self.net.expect( self.prompt )
+        # The first NAT setup restarts network-manager or runs 'netplan
+        # apply' (see NAT.setManualConfig), which can take well over the
+        # default 30 s on current Ubuntu
+        self.net.expect( self.prompt, timeout=180 )
 
     def testPublicPing( self ):
         "Attempt to ping the public server (h0) from h1 and h2"

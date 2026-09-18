@@ -19,7 +19,8 @@ class testNAT( unittest.TestCase ):
     def testNAT( self ):
         "Attempt to ping an IP on the Internet and verify 0% packet loss"
         p = pexpect.spawn( 'python3 -m mininet.examples.nat' )
-        p.expect( self.prompt )
+        # NAT setup may restart network-manager or run 'netplan apply'
+        p.expect( self.prompt, timeout=180 )
         p.sendline( 'h1 ping -c 1 %s' % destIP )
         p.expect ( r'(\d+)% packet loss' )
         percent = int( p.match.group( 1 ) ) if p.match else -1
