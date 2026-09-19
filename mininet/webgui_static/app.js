@@ -70,6 +70,9 @@ async function api(method, name, body) {
     throw new Error('access token needed');
   }
   const options = { method, headers: { Authorization: 'Bearer ' + state.token } };
+  // The server only accepts JSON for POST (part of its CSRF protection),
+  // so actions without parameters send an empty JSON object
+  if (method === 'POST' && body === undefined) body = {};
   if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(body);

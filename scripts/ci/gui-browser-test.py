@@ -60,11 +60,21 @@ def check_config_and_validation( page, outdir, suffix ):
     page.locator( '#tab-config' ).click()
 
 
+def wait_for( page, condition ):
+    "Wait until condition (JS) holds; fail at once if the GUI shows an error"
+    page.wait_for_function(
+        "() => (%s) || document.getElementById( 'notice' )"
+        ".classList.contains( 'error' )" % condition, timeout=TIMEOUT )
+    notice = page.locator( '#notice' )
+    if 'error' in ( notice.get_attribute( 'class' ) or '' ):
+        raise SystemExit( 'GUI error: %s' % notice.inner_text() )
+
+
 def check_network( page, outdir, suffix ):
     "Start, ping all, run commands, iperf, stop"
     page.locator( '#btn-start' ).click()
-    expect( page.locator( '#status-pill' ) ).to_have_text(
-        'Running', timeout=TIMEOUT )
+    wait_for( page, "document.getElementById( 'status-pill' ).textContent"
+                    " === 'Running'" )
     expect( page.locator( '#graph circle.halo[visibility=visible]' ) ) \
         .to_have_count( 3 )
 

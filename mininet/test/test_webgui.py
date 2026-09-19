@@ -214,6 +214,11 @@ class SecurityTests( GuiTestCase ):
             headers={ 'Content-Type': 'application/x-www-form-urlencoded' } )
         self.assertEqual( status, 415 )
 
+    def testPostWithoutBodyRejected( self ):
+        "A bare POST (as a form or fetch without a body sends) gets 415"
+        status, _, _ = self.request( 'POST', '/api/stop' )
+        self.assertEqual( status, 415 )
+
     def testBodyLimits( self ):
         "Oversized and malformed bodies"
         status, _, _ = self.request(
