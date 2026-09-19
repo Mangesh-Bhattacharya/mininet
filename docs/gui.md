@@ -16,6 +16,41 @@ machine hosting that container or VM.
 - **Guide**: every setting, grouped by *edit freely*, *advanced* and *do
   not edit*.
 
+## A quick tour
+
+These screenshots are taken automatically by CI, which drives the GUI in
+a real browser against a real network on every change
+([`scripts/ci/gui-browser-test.py`](../scripts/ci/gui-browser-test.py)).
+
+**1. Open your lab.** The topology is drawn from the configuration; the
+editor holds the file itself.
+
+![Topology and configuration editor](images/gui-overview.png)
+
+**2. Edit it.** Every change is checked as you type. Mistakes are listed
+with hints, and Save stays disabled until the file is valid.
+
+![Validation errors with hints](images/gui-validation.png)
+
+**3. Start the network and press Ping all.** Hosts turn green when the
+network runs, and the matrix shows which host can reach which.
+
+![Ping matrix of a running network](images/gui-pingall.png)
+
+**4. Use the console.** Run any command on any host, or measure bandwidth
+with iperf.
+
+![Console with ping and iperf output](images/gui-console.png)
+
+**5. Not sure what to change?** The Guide tab lists every setting as
+*edit freely*, *advanced* or *do not edit*.
+
+![The Guide tab](images/gui-guide.png)
+
+Dark mode follows your system setting:
+
+![The GUI in dark mode](images/gui-pingall-dark.png)
+
 Configs written as programs (Python, C, C++, C#, Java, Ruby, COBOL) are
 shown read-only: edit them in your editor, then press **Reload from
 disk**.

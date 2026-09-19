@@ -70,6 +70,9 @@ async function api(method, name, body) {
     throw new Error('access token needed');
   }
   const options = { method, headers: { Authorization: 'Bearer ' + state.token } };
+  // The server only accepts JSON for POST (part of its CSRF protection),
+  // so actions without parameters send an empty JSON object
+  if (method === 'POST' && body === undefined) body = {};
   if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(body);
@@ -353,9 +356,10 @@ function showPing(result) {
       : el('td', { class: ok ? 'yes' : 'no' }, ok ? 'yes' : 'no'))));
   const verdict = result.loss === 0 ? el('p', { class: 'ok' }, 'All hosts can reach each other (0% loss).')
     : el('p', { class: 'bad' }, `${result.loss}% of pings were lost.`);
-  $('ping-result').replaceChildren(verdict,
-    el('div', { class: 'matrix-wrap' }, el('table', { class: 'matrix' }, el('thead', {}, head), el('tbody', {}, ...rows))),
-    result.truncated ? el('p', { class: 'muted small' }, 'Only the first 32 hosts are shown.') : null);
+  const parts = [verdict,
+    el('div', { class: 'matrix-wrap' }, el('table', { class: 'matrix' }, el('thead', {}, head), el('tbody', {}, ...rows)))];
+  if (result.truncated) parts.push(el('p', { class: 'muted small' }, 'Only the first 32 hosts are shown.'));
+  $('ping-result').replaceChildren(...parts);
   selectTab('results');
 }
 
@@ -389,6 +393,9 @@ async function start() {
   if (!state.token) { askToken(); return; }
   try {
     await refreshStatus();
+    const dialog = $('token-dialog');
+    if (dialog.open) dialog.close();
+    notify('');
     await Promise.all([loadConfig(), loadGuide()]);
     if (!state.status.root) {
       notify('Edit-only mode: mn-gui is not running as root, so you can edit and validate but not start networks. Restart it with sudo.');
@@ -434,6 +441,10 @@ function wire() {
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { if (state.graph) drawGraph(state.graph); }, 200);
+  });
+  // Pasting a new #token=... URL only changes the hash: no page reload
+  window.addEventListener('hashchange', () => {
+    if (/token=/.test(location.hash)) start();
   });
   window.addEventListener('beforeunload', (e) => {
     if ($('editor').value !== state.savedText) e.preventDefault();

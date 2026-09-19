@@ -1,0 +1,3 @@
+# Browser end-to-end test of mn-gui (scripts/ci/gui-browser-test.py).
+# Updated weekly by Dependabot.
+playwright==1.63.0

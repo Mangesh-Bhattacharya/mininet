@@ -97,7 +97,9 @@ def writeFile( path, text ):
             st = os.stat( path )
             mode, owner = st.st_mode & 0o777, ( st.st_uid, st.st_gid )
         else:
-            mode, owner = 0o644, labconfig.fileOwner()
+            umask = os.umask( 0 )
+            os.umask( umask )
+            mode, owner = 0o666 & ~umask, labconfig.fileOwner()
         os.chmod( tmp, mode )
         if owner and isRoot():
             try:
