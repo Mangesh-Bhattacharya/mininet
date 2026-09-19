@@ -82,6 +82,8 @@ def check_network( page, outdir, suffix ):
     expect( page.locator( '#ping-result' ) ).to_contain_text(
         'All hosts can reach each other', timeout=TIMEOUT )
     expect( page.locator( '#ping-result td.no' ) ).to_have_count( 0 )
+    expect( page.locator( '#ping-result' ) ).not_to_contain_text( 'null' )
+    expect( page.locator( '#btn-pingall' ) ).to_be_enabled()
     shot( page, outdir, 'gui-pingall%s.png' % suffix )
 
     page.locator( '#tab-console' ).click()
@@ -95,6 +97,7 @@ def check_network( page, outdir, suffix ):
     page.locator( '#iperf-form button[type=submit]' ).click()
     expect( page.locator( '#console' ) ).to_contain_text(
         'bits/sec', timeout=TIMEOUT )
+    expect( page.locator( '#btn-pingall' ) ).to_be_enabled()
     shot( page, outdir, 'gui-console%s.png' % suffix )
 
     page.locator( '#btn-stop' ).click()

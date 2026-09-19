@@ -356,9 +356,10 @@ function showPing(result) {
       : el('td', { class: ok ? 'yes' : 'no' }, ok ? 'yes' : 'no'))));
   const verdict = result.loss === 0 ? el('p', { class: 'ok' }, 'All hosts can reach each other (0% loss).')
     : el('p', { class: 'bad' }, `${result.loss}% of pings were lost.`);
-  $('ping-result').replaceChildren(verdict,
-    el('div', { class: 'matrix-wrap' }, el('table', { class: 'matrix' }, el('thead', {}, head), el('tbody', {}, ...rows))),
-    result.truncated ? el('p', { class: 'muted small' }, 'Only the first 32 hosts are shown.') : null);
+  const parts = [verdict,
+    el('div', { class: 'matrix-wrap' }, el('table', { class: 'matrix' }, el('thead', {}, head), el('tbody', {}, ...rows)))];
+  if (result.truncated) parts.push(el('p', { class: 'muted small' }, 'Only the first 32 hosts are shown.'));
+  $('ping-result').replaceChildren(...parts);
   selectTab('results');
 }
 
