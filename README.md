@@ -87,7 +87,7 @@ Ubuntu 22.04/24.04 and Debian 12/13:
 ```bash
 git clone https://github.com/Mangesh-Bhattacharya/mininet.git
 cd mininet
-util/install.sh -nv            # Mininet + Open vSwitch
+util/install.sh -nv            # installs Mininet and Open vSwitch
 sudo mn --test pingall
 ```
 
