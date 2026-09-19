@@ -123,6 +123,38 @@ jobs:
             echo "::endgroup::"
           done
 
+  gui-browser:
+    name: Browser GUI in Chromium (real network, screenshots)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Mininet
+        run: |
+          sudo apt-get update -qq
+          util/install.sh -nv
+      - name: Install Playwright and Chromium
+        run: |
+          python3 -m venv "$RUNNER_TEMP/e2e"
+          "$RUNNER_TEMP/e2e/bin/pip" install -q -r requirements-e2e.txt
+          "$RUNNER_TEMP/e2e/bin/python" -m playwright install --with-deps chromium
+      - name: Drive mn-gui in the browser
+        run: |
+          TOKEN="ci-$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+          mkdir -p "$RUNNER_TEMP/lab" && cd "$RUNNER_TEMP/lab"
+          sudo env MININET_GUI_TOKEN="$TOKEN" mn-gui --config lab.yaml --port 8765 \
+            > gui.log 2>&1 &
+          trap 'sudo pkill -f "mn-gui --config" || true; sleep 2; sudo mn -c > /dev/null 2>&1; cat gui.log' EXIT
+          for _ in $(seq 60); do curl -fsS -o /dev/null http://localhost:8765/ && break; sleep 1; done
+          "$RUNNER_TEMP/e2e/bin/python" "$GITHUB_WORKSPACE/scripts/ci/gui-browser-test.py" \
+            http://localhost:8765 "$TOKEN" "$RUNNER_TEMP/screenshots"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: gui-screenshots
+          path: ${{ runner.temp }}/screenshots
+
   debian-package:
     name: Debian package (build, install, run)
     runs-on: ubuntu-24.04

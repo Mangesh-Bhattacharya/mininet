@@ -389,6 +389,9 @@ async function start() {
   if (!state.token) { askToken(); return; }
   try {
     await refreshStatus();
+    const dialog = $('token-dialog');
+    if (dialog.open) dialog.close();
+    notify('');
     await Promise.all([loadConfig(), loadGuide()]);
     if (!state.status.root) {
       notify('Edit-only mode: mn-gui is not running as root, so you can edit and validate but not start networks. Restart it with sudo.');
@@ -434,6 +437,10 @@ function wire() {
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { if (state.graph) drawGraph(state.graph); }, 200);
+  });
+  // Pasting a new #token=... URL only changes the hash: no page reload
+  window.addEventListener('hashchange', () => {
+    if (/token=/.test(location.hash)) start();
   });
   window.addEventListener('beforeunload', (e) => {
     if ($('editor').value !== state.savedText) e.preventDefault();

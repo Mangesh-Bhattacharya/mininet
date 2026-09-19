@@ -129,7 +129,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 #graph { width: 100%; height: clamp(320px, 58vh, 620px); display: block; margin-top: 8px; }
 #graph .edge { stroke: var(--edge); stroke-width: 2; }
 #graph .edge.control { stroke-dasharray: 4 5; stroke-width: 1.2; opacity: 0.7; }
-#graph .edge-label { fill: var(--muted); font-size: 11px; }
+#graph .edge-label {
+  fill: var(--muted); font-size: 11px;
+  /* outline in the panel colour keeps labels readable over lines */
+  paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
+}
 #graph .node-label { fill: var(--text); font-size: 12px; font-weight: 600; }
 #graph .host { fill: var(--host); }
 #graph .switch { fill: var(--switch); }
