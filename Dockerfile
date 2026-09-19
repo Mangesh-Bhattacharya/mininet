@@ -29,6 +29,9 @@ LABEL org.opencontainers.image.title="Mininet" \
       org.opencontainers.image.source="https://github.com/Mangesh-Bhattacharya/mininet" \
       org.opencontainers.image.licenses="BSD-3-Clause"
 
+# /var/lib/openvswitch/pki is removed because the OVS packages generate CA
+# private keys at install time, which every image would otherwise share
+# (Mininet doesn't use OVS SSL).
 # hadolint ignore=DL3005,DL3008
 RUN apt-get update \
     && apt-get upgrade -y \
@@ -42,7 +45,7 @@ RUN apt-get update \
         apt-get install -y --no-install-recommends \
             default-jdk-headless dotnet-sdk-8.0 gnucobol; \
     fi \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/lib/openvswitch/pki
 
 WORKDIR /opt/mininet
 COPY . .
@@ -67,6 +70,9 @@ ENV MININET_CONTAINER=1 \
     DOTNET_NOLOGO=1
 # mn-gui. Publish it to the host's loopback only: -p 127.0.0.1:8080:8080
 EXPOSE 8080
+# Healthy when Open vSwitch (started by the entrypoint) answers
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ovs-vsctl -t 3 show > /dev/null || exit 1
 WORKDIR /workspace
 ENTRYPOINT ["mininet-entrypoint"]
 CMD ["bash"]

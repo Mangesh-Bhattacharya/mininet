@@ -17,6 +17,7 @@ import io
 import json
 import os
 import platform
+import shlex
 import sys
 from subprocess import Popen, PIPE, STDOUT
 
@@ -58,10 +59,10 @@ class Env( object ):
 
     @staticmethod
     def run( cmd ):
-        "Run shell command; return ( exitcode, output )"
+        "Run a command (no shell); return ( exitcode, output )"
         try:
             # pylint: disable=consider-using-with
-            popen = Popen( cmd, shell=True, stdout=PIPE, stderr=STDOUT )
+            popen = Popen( shlex.split( cmd ), stdout=PIPE, stderr=STDOUT )
             out, _err = popen.communicate()
             return popen.returncode, out.decode( 'utf-8', 'replace' )
         except OSError as e:

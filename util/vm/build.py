@@ -202,7 +202,7 @@ def findiso( flavor ):
             raise Exception( 'findiso: could not download iso from ' + url )
         # Write-protect iso, signaling it is complete
         log( '* Write-protecting iso', iso)
-        os.chmod( iso, 0o444 )
+        os.chmod( iso, os.stat( iso ).st_mode & ~0o222 )
     log( '* Using iso', iso )
     return iso
 
@@ -288,7 +288,7 @@ def findBaseImage( flavor, size='8G' ):
         installUbuntu( iso, image )
         # Write-protect image, also signaling it is complete
         log( '* Write-protecting image', image)
-        os.chmod( image, 0o444 )
+        os.chmod( image, os.stat( image ).st_mode & ~0o222 )
     kernel, initrd, partnum = extractKernel( image, flavor )
     log( '* Using base image', image, 'and kernel', kernel,
          'and partition #', partnum )
