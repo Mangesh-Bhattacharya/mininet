@@ -68,6 +68,18 @@ void validate(char *path)
     }
 }
 
+/* Write pid to an existing file (never creates one); 1 on success */
+int writepid(const char *path, pid_t pid)
+{
+    int ok;
+    int fd = open(path, O_WRONLY | O_CLOEXEC);
+    if (fd < 0)
+        return 0;
+    ok = dprintf(fd, "%d\n", pid) > 0;
+    close(fd);
+    return ok;
+}
+
 /* Add our pid to cgroup */
 void cgroup(char *gname)
 {
@@ -80,27 +92,15 @@ void cgroup(char *gname)
     int count = 0;
     validate(gname);
     for (gptr = groups; *gptr; gptr++) {
-        FILE *f;
         snprintf(path, PATH_MAX, "/sys/fs/cgroup/%s/%s/tasks",
                  *gptr, gname);
-        f = fopen(path, "w");
-        if (f) {
-            count++;
-            fprintf(f, "%d\n", pid);
-            fclose(f);
-        }
+        count += writepid(path, pid);
     }
     if (!count) {
         /* cgroup v2 (unified hierarchy, the default on current Linux
            distributions): one group directory with a cgroup.procs file */
-        FILE *f;
         snprintf(path, PATH_MAX, "/sys/fs/cgroup/%s/cgroup.procs", gname);
-        f = fopen(path, "w");
-        if (f) {
-            count++;
-            fprintf(f, "%d\n", pid);
-            fclose(f);
-        }
+        count += writepid(path, pid);
     }
     if (!count) {
         fprintf(stderr, "cgroup: could not add to cgroup %s\n",
