@@ -11,6 +11,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -220,6 +221,106 @@ class ValidationTests( unittest.TestCase ):
     def testNotAMapping( self ):
         "Top level must be a mapping"
         self.assertInvalid( [ 1, 2 ], '' )
+
+
+class TopologyModelTests( unittest.TestCase ):
+    "The plain-data topology model (works without Mininet's Linux deps)"
+
+    cases = [ { 'type': 'minimal' },
+              { 'type': 'single', 'hosts': 4 },
+              { 'type': 'linear', 'switches': 3 },
+              { 'type': 'linear', 'switches': 3, 'hosts': 2 },
+              { 'type': 'tree', 'depth': 2, 'fanout': 2 },
+              { 'type': 'tree', 'depth': 3, 'fanout': 2 },
+              { 'type': 'tree', 'depth': 2, 'fanout': 3 } ]
+
+    def testMatchesMininet( self ):
+        "expand() produces exactly Mininet's nodes and links"
+        for topology in self.cases:
+            with self.subTest( topology=topology ):
+                cfg = validate( { 'topology': topology } )
+                hosts, switches, links = labconfig.expand( cfg )
+                topo = labconfig.buildTopo( cfg )
+                self.assertEqual( sorted( h[ 'name' ] for h in hosts ),
+                                  sorted( topo.hosts() ) )
+                self.assertEqual( sorted( s[ 'name' ] for s in switches ),
+                                  sorted( topo.switches() ) )
+                ours = sorted( tuple( sorted( ( l[ 'from' ], l[ 'to' ] ) ) )
+                               for l in links )
+                theirs = sorted( tuple( sorted( pair ) )
+                                 for pair in topo.links() )
+                self.assertEqual( ours, theirs )
+
+    def testExplicitNodesAndPositions( self ):
+        "Explicit nodes keep their GUI positions"
+        cfg = validate( { 'hosts': [ { 'name': 'h1', 'x': 40, 'y': 60.5 } ],
+                          'switches': [ { 'name': 's1' } ],
+                          'links': [ [ 'h1', 's1' ] ] } )
+        node = labconfig.graph( cfg )[ 'nodes' ][ 0 ]
+        self.assertEqual( ( node[ 'x' ], node[ 'y' ] ), ( 40, 60.5 ) )
+        self.assertTrue( labconfig.graph( cfg )[ 'editable' ] )
+        self.assertFalse( labconfig.graph(
+            validate( { 'topology': { 'type': 'minimal' } } )
+        )[ 'editable' ] )
+
+    def testBadPositions( self ):
+        "Positions are numbers on the canvas"
+        for value in ( 'left', -5, None ):
+            with self.assertRaises( ConfigError ):
+                validate( { 'hosts': [ { 'name': 'h1', 'x': value } ] } )
+
+    def testWorksWithoutLinuxModules( self ):
+        "Validating a config imports nothing Linux-only (Windows, macOS)"
+        code = ( 'import sys; from mininet import labconfig;'
+                 'labconfig.validate( { "topology": { "type": "tree",'
+                 ' "depth": 2 } } );'
+                 'labconfig.graph( labconfig.validate( {} ) );'
+                 'bad = [ m for m in sys.modules'
+                 ' if m.startswith( "mininet." )'
+                 ' and m != "mininet.labconfig" ];'
+                 'print( "imported:", bad ); sys.exit( 1 if bad else 0 )' )
+        result = subprocess.run( [ sys.executable, '-c', code ],
+                                 check=False, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT,
+                                 cwd=os.path.dirname( os.path.dirname(
+                                     os.path.dirname(
+                                         os.path.abspath( __file__ ) ) ) ) )
+        self.assertEqual( result.returncode, 0,
+                          result.stdout.decode( 'utf-8', 'replace' ) )
+
+
+class DumpTests( unittest.TestCase ):
+    "Writing configurations back out (the GUI's topology editor)"
+
+    def testRoundTrip( self ):
+        "dump() output parses back to the same configuration"
+        source = labconfig.readText( labconfig.templatePath(
+            labconfig.languageByKey( 'yaml' ) ) )
+        cfg = validate( labconfig.parseText( source, 'yaml' ) )
+        for fmt in ( 'yaml', 'json' ):
+            with self.subTest( format=fmt ):
+                text = labconfig.dump( cfg, fmt )
+                again = validate( labconfig.parseText( text, fmt ) )
+                self.assertEqual( again, cfg )
+
+    def testDefaultsAreLeftOut( self ):
+        "Only settings that differ from the default are written"
+        text = labconfig.dump( validate( {
+            'name': 'tidy', 'hosts': [ { 'name': 'h1', 'x': 10.4 } ],
+            'switches': [ { 'name': 's1' } ],
+            'links': [ { 'from': 'h1', 'to': 's1' } ] } ) )
+        self.assertNotIn( 'ip_base', text )
+        self.assertNotIn( 'auto_arp', text )
+        self.assertNotIn( '\ngui:', text )
+        self.assertIn( 'x: 10', text )       # rounded for readability
+        self.assertIn( '- [h1, s1]', text )  # plain links stay pairs
+
+    def testRemoteControllerIsKept( self ):
+        "Settings that matter are written"
+        text = labconfig.dump( validate( { 'network': {
+            'controller': 'remote', 'controller_ip': '192.0.2.5' } } ) )
+        self.assertIn( '192.0.2.5', text )
+        self.assertIn( 'remote', text )
 
 
 class BuildTests( unittest.TestCase ):

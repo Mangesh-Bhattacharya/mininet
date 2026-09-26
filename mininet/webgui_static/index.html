@@ -31,14 +31,51 @@
     <section class="panel topo-panel" aria-labelledby="topo-title">
       <div class="panel-head">
         <h2 id="topo-title">Topology</h2>
-        <div class="legend" aria-hidden="true">
-          <span><i class="lg host"></i>host</span>
-          <span><i class="lg switch"></i>switch</span>
-          <span><i class="lg controller"></i>controller</span>
+        <div class="head-right">
+          <span id="edit-hint" class="small muted"></span>
+          <button id="btn-arrange" type="button" class="small-btn">Auto-arrange</button>
         </div>
       </div>
-      <svg id="graph" role="img" aria-label="Network topology"
-           preserveAspectRatio="xMidYMid meet"></svg>
+
+      <div class="editor-area">
+        <div class="palette" role="toolbar" aria-label="Topology tools">
+          <button class="tool" data-tool="select" aria-pressed="true"
+                  title="Select and move (Esc)" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 1.5L10.5 19z"/></svg>
+            <span class="sr">Select</span>
+          </button>
+          <button class="tool" data-tool="host" aria-pressed="false"
+                  title="Add a host (H)" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>
+            <span class="sr">Host</span>
+          </button>
+          <button class="tool" data-tool="switch" aria-pressed="false"
+                  title="Add a switch (S)" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/></svg>
+            <span class="sr">Switch</span>
+          </button>
+          <button class="tool" data-tool="link" aria-pressed="false"
+                  title="Add a link: click two nodes (L)" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20L20 4" stroke-width="2.5"/></svg>
+            <span class="sr">Link</span>
+          </button>
+          <button class="tool" data-tool="delete" aria-pressed="false"
+                  title="Delete a node or link (Del)" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13H7zM9 7V4h6v3" fill="none" stroke-width="2"/></svg>
+            <span class="sr">Delete</span>
+          </button>
+          <div class="legend-v" aria-hidden="true">
+            <span><i class="lg host"></i>host</span>
+            <span><i class="lg switch"></i>switch</span>
+            <span><i class="lg controller"></i>controller</span>
+          </div>
+        </div>
+
+        <svg id="graph" role="img" aria-label="Network topology"
+             preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+
+      <div id="props" class="props" hidden></div>
       <p id="summary" class="summary muted"></p>
     </section>
 

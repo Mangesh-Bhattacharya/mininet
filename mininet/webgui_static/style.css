@@ -126,7 +126,45 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .lg.switch { border-radius: 2px; background: var(--switch); }
 .lg.controller { transform: rotate(45deg); background: var(--controller); }
 
-#graph { width: 100%; height: clamp(320px, 58vh, 620px); display: block; margin-top: 8px; }
+/* Topology editor: palette on the left, canvas on the right */
+.head-right { display: flex; align-items: center; gap: 10px; }
+.small-btn { padding: 3px 9px; font-size: 0.82rem; }
+.editor-area { display: flex; gap: 10px; margin-top: 8px; }
+.palette {
+  display: flex; flex-direction: column; gap: 6px; padding: 6px;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+  align-self: flex-start;
+}
+.palette .tool {
+  width: 38px; height: 38px; padding: 0; display: grid; place-items: center;
+  background: var(--panel); border-radius: 8px;
+}
+.palette .tool svg { width: 20px; height: 20px; fill: var(--text); stroke: var(--text); stroke-width: 0; }
+.palette .tool[data-tool="link"] svg, .palette .tool[data-tool="delete"] svg { fill: none; }
+.palette .tool[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.palette .tool[aria-pressed="true"] svg { fill: var(--accent-text); stroke: var(--accent-text); }
+.palette .tool[data-tool="link"][aria-pressed="true"] svg,
+.palette .tool[data-tool="delete"][aria-pressed="true"] svg { fill: none; }
+.legend-v { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 0.7rem; color: var(--muted); }
+.legend-v span { display: flex; align-items: center; gap: 3px; }
+
+#graph { flex: 1; min-width: 0; height: clamp(320px, 58vh, 620px); display: block; }
+#graph[data-tool="host"], #graph[data-tool="switch"] { cursor: crosshair; }
+#graph[data-tool="link"] .node, #graph[data-tool="delete"] .node { cursor: pointer; }
+#graph .node { cursor: grab; }
+#graph .node.selected > :not(text):not(title) { stroke: var(--accent); stroke-width: 3; }
+#graph .node.linking > :not(text):not(title) { stroke: var(--controller); stroke-width: 3; }
+#graph .edge.clickable { cursor: pointer; }
+#graph .edge.selected { stroke: var(--accent); stroke-width: 4; }
+
+/* Properties of the selected node or link */
+.props { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.prop-form h3 { margin: 0 0 8px; font-size: 0.9rem; }
+.prop-grid {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 10px; align-items: center; font-size: 0.85rem;
+}
+.prop-grid input { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; }
 #graph .edge { stroke: var(--edge); stroke-width: 2; }
 #graph .edge.control { stroke-dasharray: 4 5; stroke-width: 1.2; opacity: 0.7; }
 #graph .edge-label {

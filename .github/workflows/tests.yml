@@ -155,6 +155,53 @@ jobs:
           name: gui-screenshots
           path: ${{ runner.temp }}/screenshots
 
+  gui-desktop:
+    # Windows and macOS can't run Mininet itself (it needs a Linux
+    # kernel), but designing, checking and editing labs must work there
+    # natively after a clone.
+    name: CLI and GUI on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML and Playwright
+        run: |
+          python -m pip install -r requirements.txt -r requirements-e2e.txt
+          python -m playwright install chromium
+      - name: Lab configurations work without a Linux kernel
+        shell: bash
+        run: |
+          export PYTHONPATH="$PWD"
+          python bin/mn-config init --lang yaml -o lab.yaml
+          python bin/mn-config validate lab.yaml
+          python bin/mn-config show lab.yaml > /dev/null
+          python bin/mn-config schema > /dev/null
+          python bin/mn-config languages
+          python -m unittest mininet.test.test_labconfig -v
+      - name: The GUI edits topologies here too
+        shell: bash
+        env:
+          MININET_GUI_TOKEN: ci-token-desktop-0123456789
+        run: |
+          export PYTHONPATH="$PWD"
+          python bin/mn-gui --config desktop-lab.yaml --port 8765 &
+          for _ in $(seq 60); do curl -fsS -o /dev/null http://localhost:8765/ && break; sleep 1; done
+          python scripts/ci/gui-browser-test.py http://localhost:8765 \
+            "$MININET_GUI_TOKEN" screenshots --no-network
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: gui-desktop-${{ matrix.os }}
+          path: screenshots
+
   debian-package:
     name: Debian package (build, install, run)
     runs-on: ubuntu-24.04

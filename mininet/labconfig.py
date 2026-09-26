@@ -85,12 +85,16 @@ FIELDS = [
     ( 'hosts[].ip', EDIT, 'IP address with prefix (10.0.0.1/24).' ),
     ( 'hosts[].mac', CARE, 'MAC address (00:00:00:00:00:01).' ),
     ( 'hosts[].gateway', CARE, 'Default gateway IP address.' ),
+    ( 'hosts[].x', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
+    ( 'hosts[].y', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'switches[].name', EDIT,
       'Switch name; must contain a number (s1) unless dpid is set.' ),
     ( 'switches[].dpid', CARE,
       'OpenFlow datapath ID, up to 16 hex digits, as a quoted string.' ),
     ( 'switches[].protocols', CARE,
       'OpenFlow versions for ovs switches, e.g. OpenFlow13.' ),
+    ( 'switches[].x', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
+    ( 'switches[].y', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'links[].from', EDIT, 'Name of the node at one end of the link.' ),
     ( 'links[].to', EDIT, 'Name of the node at the other end.' ),
     ( 'links[].bw', EDIT, 'Bandwidth limit in Mbit/s (0.1 - 1000).' ),
@@ -500,6 +504,13 @@ class Checker( object ):
                       'e.g. 10.0.0.1/24' if prefix else 'e.g. 10.0.0.254' )
             return None
 
+    def position( self, node, path ):
+        "Check the GUI's x/y canvas position"
+        for key in ( 'x', 'y' ):
+            if key in node:
+                self.number( node[ key ], '%s.%s' % ( path, key ),
+                             ( 0, 100000 ) )
+
     def linkOptions( self, link, path ):
         "Check bw/delay/loss/max_queue in a link or topology.link"
         if 'bw' in link:
@@ -578,7 +589,8 @@ def _checkHosts( chk, hosts, names, ips ):
     "Validate the hosts list"
     for i, host in enumerate( hosts ):
         path = 'hosts[%d]' % i
-        if not chk.keys( host, path, [ 'name', 'ip', 'mac', 'gateway' ] ):
+        if not chk.keys( host, path, [ 'name', 'ip', 'mac', 'gateway',
+                                       'x', 'y' ] ):
             continue
         name = host.get( 'name' )
         if chk.name( name, path + '.name' ):
@@ -599,13 +611,15 @@ def _checkHosts( chk, hosts, names, ips ):
         if 'gateway' in host:
             chk.address( host[ 'gateway' ], path + '.gateway',
                          prefix=False )
+        chk.position( host, path )
 
 
 def _checkSwitches( chk, switches, names ):
     "Validate the switches list"
     for i, switch in enumerate( switches ):
         path = 'switches[%d]' % i
-        if not chk.keys( switch, path, [ 'name', 'dpid', 'protocols' ] ):
+        if not chk.keys( switch, path, [ 'name', 'dpid', 'protocols',
+                                         'x', 'y' ] ):
             continue
         name = switch.get( 'name' )
         if chk.name( name, path + '.name' ):
@@ -628,6 +642,7 @@ def _checkSwitches( chk, switches, names ):
                 str( protocols ) ):
             chk.add( path + '.protocols', 'invalid %r' % ( protocols, ),
                      'e.g. OpenFlow13 or OpenFlow10,OpenFlow13' )
+        chk.position( switch, path )
 
 
 def _checkLinks( chk, links, names ):
@@ -694,14 +709,18 @@ def validate( data ):
             'description': str( data.get( 'description' ) or '' ),
             'network': _checkNetwork( chk, data.get( 'network' ) ),
             'topology': None, 'hosts': [], 'switches': [], 'links': [] }
-    explicit = [ k for k in ( 'hosts', 'switches', 'links' ) if k in data ]
-    if 'topology' in data and explicit:
+    # An empty topology counts as absent, so a configuration this module
+    # produced (topology: null) can be validated again. Empty node lists
+    # still mean "an empty lab", not "give me the default one".
+    given = [ k for k in ( 'hosts', 'switches', 'links' ) if k in data ]
+    filled = [ k for k in given if data.get( k ) ]
+    if data.get( 'topology' ) and filled:
         chk.add( 'topology', 'use either topology or %s, not both' %
-                 '/'.join( explicit ),
+                 '/'.join( filled ),
                  'remove the topology section to define nodes yourself' )
-    elif 'topology' in data:
+    elif data.get( 'topology' ):
         cfg[ 'topology' ] = _checkTopology( chk, data[ 'topology' ] )
-    elif not explicit:
+    elif not given:
         cfg[ 'topology' ] = { 'type': 'minimal' }
     names, ips = set(), set()
     cfg[ 'hosts' ] = _checkList( chk, data, 'hosts' )
@@ -720,11 +739,154 @@ def validate( data ):
         cfg[ 'gui' ][ 'port' ] = gui[ 'port' ]
     cfg[ 'run' ] = _checkList( chk, data, 'run' )
     if not chk.issues:
-        topo = buildTopo( cfg )
-        _checkRun( chk, cfg[ 'run' ], set( topo.nodes() ) )
+        _checkRun( chk, cfg[ 'run' ], set( nodeNames( cfg ) ) )
     if chk.issues:
         raise ConfigError( chk.issues )
     return cfg
+
+
+# The topology as plain data (no Mininet imports, so this works on
+# any operating system). test_labconfig checks it against Mininet's own
+# built-in topologies.
+
+def _builtinTopology( topo ):
+    """Expand a built-in topology into ( hosts, switches, links ).
+       Names match Mininet's SingleSwitchTopo, LinearTopo and TreeTopo."""
+    kind = topo[ 'type' ]
+    hosts, switches, links = [], [], []
+    if kind in ( 'minimal', 'single' ):
+        count = 2 if kind == 'minimal' else topo.get( 'hosts', 2 )
+        switches.append( 's1' )
+        for i in range( 1, count + 1 ):
+            hosts.append( 'h%s' % i )
+            links.append( ( 'h%s' % i, 's1' ) )
+    elif kind == 'linear':
+        switchCount = topo.get( 'switches', 2 )
+        perSwitch = topo.get( 'hosts', 1 )
+        last = None
+        for i in range( 1, switchCount + 1 ):
+            switch = 's%s' % i
+            switches.append( switch )
+            for j in range( 1, perSwitch + 1 ):
+                host = ( 'h%s' % i if perSwitch == 1
+                         else 'h%ss%d' % ( j, i ) )
+                hosts.append( host )
+                links.append( ( host, switch ) )
+            if last:
+                links.append( ( last, switch ) )
+            last = switch
+    elif kind == 'tree':
+        counters = { 'host': 1, 'switch': 1 }
+
+        def addTree( depth ):
+            "Add a subtree and return its root, as TreeTopo does"
+            if depth > 0:
+                node = 's%s' % counters[ 'switch' ]
+                switches.append( node )
+                counters[ 'switch' ] += 1
+                for _ in range( topo.get( 'fanout', 2 ) ):
+                    links.append( ( node, addTree( depth - 1 ) ) )
+            else:
+                node = 'h%s' % counters[ 'host' ]
+                hosts.append( node )
+                counters[ 'host' ] += 1
+            return node
+
+        addTree( topo.get( 'depth', 2 ) )
+    return hosts, switches, links
+
+
+def expand( cfg ):
+    """Return the configuration's topology as
+       ( hosts, switches, links ), where each is a list of dicts.
+       Built-in topologies are expanded into the same nodes and links
+       Mininet would create."""
+    topo = cfg.get( 'topology' )
+    if not topo:
+        return ( list( cfg[ 'hosts' ] ), list( cfg[ 'switches' ] ),
+                 list( cfg[ 'links' ] ) )
+    hosts, switches, links = _builtinTopology( topo )
+    options = { k: v for k, v in topo.get( 'link', {} ).items() }
+    return ( [ { 'name': h } for h in hosts ],
+             [ { 'name': s } for s in switches ],
+             [ dict( options, **{ 'from': a, 'to': b } )
+               for a, b in links ] )
+
+
+def nodeNames( cfg ):
+    "Every node name in a validated configuration"
+    hosts, switches, _links = expand( cfg )
+    return [ n[ 'name' ] for n in hosts + switches ]
+
+
+def _tidy( node ):
+    "A node with integer canvas positions and no empty values"
+    out = {}
+    for key, value in node.items():
+        if key in ( 'x', 'y' ):
+            value = int( round( value ) )
+        out[ key ] = value
+    return out
+
+
+def asData( cfg ):
+    """The configuration as plain data for a file: settings left at
+       their default are left out, and links with no options are pairs"""
+    out = { 'version': FORMAT_VERSION, 'name': cfg[ 'name' ] }
+    if cfg[ 'description' ]:
+        out[ 'description' ] = cfg[ 'description' ]
+    network = { k: v for k, v in cfg[ 'network' ].items()
+                if v != DEFAULT_NETWORK[ k ] }
+    if network.get( 'controller' ) != 'remote':
+        for key in ( 'controller_ip', 'controller_port' ):
+            network.pop( key, None )
+    if network:
+        out[ 'network' ] = network
+    if cfg.get( 'topology' ):
+        out[ 'topology' ] = cfg[ 'topology' ]
+    else:
+        out[ 'hosts' ] = [ _tidy( h ) for h in cfg[ 'hosts' ] ]
+        out[ 'switches' ] = [ _tidy( s ) for s in cfg[ 'switches' ] ]
+        links = []
+        for link in cfg[ 'links' ]:
+            extra = [ k for k in link if k not in ( 'from', 'to' ) ]
+            links.append( dict( link ) if extra else
+                          [ link[ 'from' ], link[ 'to' ] ] )
+        out[ 'links' ] = links
+    for key in ( 'run', 'tests' ):
+        if cfg.get( key ):
+            out[ key ] = cfg[ key ]
+    if cfg.get( 'gui', {} ).get( 'port', 8080 ) != 8080:
+        out[ 'gui' ] = cfg[ 'gui' ]
+    return out
+
+
+HEADER = """# Mininet lab configuration
+#
+#   mn-config validate %(file)s      check it
+#   sudo mn-config run %(file)s      start the network
+#   sudo mn-gui --config %(file)s    edit and run it in your browser
+#
+# Every setting is explained in docs/configuration.md, and
+# "mn-config schema" says which ones are safe to change.
+"""
+
+
+def dump( cfg, fmt='yaml', name='lab.yaml' ):
+    """Serialize a validated configuration back to file text. The GUI's
+       topology editor saves files this way, so comments are not kept."""
+    data = asData( cfg )
+    if fmt == 'json':
+        return json.dumps( data, indent=2 ) + '\n'
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        raise ConfigError( Issue(
+            name, 'writing YAML needs the PyYAML package',
+            'install python3-yaml (apt) or PyYAML (pip)' ) ) from None
+    body = yaml.safe_dump( data, sort_keys=False, default_flow_style=None,
+                           width=70, allow_unicode=True )
+    return HEADER % { 'file': name } + '\n' + body
 
 
 # Building networks
@@ -843,34 +1005,40 @@ def runTests( net, cfg ):
 
 def graph( cfg ):
     "Nodes and links of a validated configuration, for drawing"
-    topo = buildTopo( cfg )
-    nodes = [ { 'id': h, 'kind': 'host' } for h in topo.hosts() ]
-    nodes += [ { 'id': s, 'kind': 'switch' } for s in topo.switches() ]
-    links = []
-    for src, dst, info in topo.links( sort=True, withInfo=True ):
+    hosts, switches, links = expand( cfg )
+    nodes = []
+    for kind, group in ( ( 'host', hosts ), ( 'switch', switches ) ):
+        for node in group:
+            item = { 'id': node[ 'name' ], 'kind': kind }
+            for key in ( 'x', 'y' ):
+                if key in node:
+                    item[ key ] = node[ key ]
+            nodes.append( item )
+    edges = []
+    for link in links:
         label = []
-        if 'bw' in info:
-            label.append( '%sMb/s' % info[ 'bw' ] )
-        if 'delay' in info:
-            label.append( str( info[ 'delay' ] ) )
-        if 'loss' in info:
-            label.append( '%s%% loss' % info[ 'loss' ] )
-        links.append( { 'from': src, 'to': dst,
+        if 'bw' in link:
+            label.append( '%sMb/s' % link[ 'bw' ] )
+        if 'delay' in link:
+            label.append( str( link[ 'delay' ] ) )
+        if 'loss' in link:
+            label.append( '%s%% loss' % link[ 'loss' ] )
+        edges.append( { 'from': link[ 'from' ], 'to': link[ 'to' ],
                         'label': ' '.join( label ) } )
-    if cfg[ 'network' ][ 'controller' ] != 'none' and topo.switches():
+    if cfg[ 'network' ][ 'controller' ] != 'none' and switches:
         nodes.append( { 'id': 'c0', 'kind': 'controller' } )
-        links += [ { 'from': 'c0', 'to': s, 'label': '', 'control': True }
-                   for s in topo.switches() ]
-    return { 'nodes': nodes, 'links': links }
+        edges += [ { 'from': 'c0', 'to': s[ 'name' ], 'label': '',
+                     'control': True } for s in switches ]
+    return { 'nodes': nodes, 'links': edges, 'editable': not cfg[
+        'topology' ] }
 
 
 def summary( cfg ):
     "One-paragraph description of a validated configuration"
-    topo = buildTopo( cfg )
+    hosts, switches, links = expand( cfg )
     net = cfg[ 'network' ]
     lines = [ '%s: %d hosts, %d switches, %d links' % (
-        cfg[ 'name' ], len( topo.hosts() ), len( topo.switches() ),
-        len( topo.links() ) ),
+        cfg[ 'name' ], len( hosts ), len( switches ), len( links ) ),
         'switch=%s controller=%s datapath=%s' % (
             net[ 'switch' ], net[ 'controller' ], net[ 'datapath' ] ) ]
     if usesShaping( cfg ):

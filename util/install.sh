@@ -97,6 +97,32 @@ if [ -r /etc/os-release ]; then
     esac
     RELEASE=$(. /etc/os-release; echo "${VERSION_ID:-Unknown}")
     CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME:-Unknown}")
+    # Derivatives (Zorin OS, Linux Mint, Pop!_OS, elementary, Kali...)
+    # carry their own version number, which says nothing about the
+    # packages they ship. Use the Ubuntu/Debian release they are built
+    # on: UBUNTU_CODENAME, or the codename mapped to a release.
+    if [ "$OS_ID" != ubuntu ] && [ "$OS_ID" != debian ]; then
+        BASE_CODENAME=$(. /etc/os-release; echo "${UBUNTU_CODENAME:-}")
+        [ -n "$BASE_CODENAME" ] && CODENAME=$BASE_CODENAME
+        case "$CODENAME" in
+            # Ubuntu
+            focal) BASE_RELEASE=20.04;;
+            jammy) BASE_RELEASE=22.04;;
+            noble) BASE_RELEASE=24.04;;
+            resolute) BASE_RELEASE=26.04;;
+            # Debian
+            bullseye) BASE_RELEASE=11;;
+            bookworm) BASE_RELEASE=12;;
+            trixie) BASE_RELEASE=13;;
+            forky) BASE_RELEASE=14;;
+            *) BASE_RELEASE='';;
+        esac
+        if [ -n "$BASE_RELEASE" ] && [ "$BASE_RELEASE" != "$RELEASE" ]; then
+            echo "Detected $OS_ID $RELEASE, built on $DIST $BASE_RELEASE" \
+                 "($CODENAME)"
+            RELEASE=$BASE_RELEASE
+        fi
+    fi
 elif which lsb_release &> /dev/null; then
     DIST=`lsb_release -is`
     RELEASE=`lsb_release -rs`
