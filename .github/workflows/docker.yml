@@ -97,7 +97,6 @@ jobs:
           scanners: vuln,secret
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-          trivyignores: .trivyignore.yaml
           format: sarif
           output: trivy-image.sarif
       - name: Upload scan results to GitHub code scanning
@@ -113,7 +112,7 @@ jobs:
           scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-          trivyignores: .trivyignore.yaml
+          ignore-policy: .trivy/ignore-kernel-headers.rego
           exit-code: "1"
           skip-setup-trivy: true
 
@@ -152,7 +151,7 @@ jobs:
           scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-          trivyignores: .trivyignore.yaml
+          ignore-policy: .trivy/ignore-kernel-headers.rego
           exit-code: "1"
 
   publish:
