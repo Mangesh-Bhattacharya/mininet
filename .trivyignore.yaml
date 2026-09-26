@@ -1,0 +1,11 @@
+# Vulnerabilities Trivy should not fail the build on (see SECURITY.md).
+# Reviewed whenever the image build fails a scan.
+vulnerabilities:
+  - id: "*"
+    purl: "pkg:deb/ubuntu/linux-libc-dev*"
+    statement: >-
+      linux-libc-dev ships only the kernel *headers* needed to compile C
+      programs (mnexec and C/C++ lab configurations). A container has no
+      kernel of its own - Mininet uses the host's - so kernel CVEs
+      reported against this package are not exploitable here. Patch the
+      host kernel instead.

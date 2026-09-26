@@ -42,6 +42,10 @@ update must pass the full test suite before it is used.
 - **Images are scanned before publishing.** A fixable HIGH or CRITICAL
   vulnerability in an image fails the build, so it is never published.
   Scan results are also uploaded to the repository's Security tab.
+  The only exception is [.trivyignore.yaml](.trivyignore.yaml):
+  kernel CVEs reported against `linux-libc-dev`, which ships only the
+  kernel headers used to compile C programs. A container has no kernel
+  of its own, so those are fixed by patching the host, not the image.
 - **Images are signed and traceable.** Every published image is signed
   with [Sigstore cosign](https://docs.sigstore.dev/) (keyless, tied to
   this repository's workflow) and carries an SBOM and SLSA build

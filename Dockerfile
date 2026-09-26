@@ -16,7 +16,7 @@
 # every week, and the weekly scheduled build also installs every
 # pending Ubuntu security update (apt-get upgrade below).
 
-FROM ubuntu:24.04@sha256:b3cc40b72b93588182b5410f723c7aaf142363311c2aa993d8a453ddcbb3ae15
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 
 ARG DEBIAN_FRONTEND=noninteractive
 # Toolchains for configuration files written as programs:
