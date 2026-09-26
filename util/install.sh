@@ -285,6 +285,22 @@ function mn_doc {
 }
 
 # The following will cause a full OF install, covering:
+# CFLAGS for the OpenFlow reference code, which predates current
+# compilers: gcc 15 defaults to C23, and gcc 14 turned several type
+# mismatches into errors. Only added when the compiler understands them.
+function old_c_cflags {
+    local flags="-g -O2 -fcommon"
+    local major=$( gcc -dumpversion 2> /dev/null | cut -d. -f1 )
+    if [ "${major:-0}" -ge 14 ] 2> /dev/null; then
+        flags="$flags -std=gnu17"
+        flags="$flags -Wno-error=incompatible-pointer-types"
+        flags="$flags -Wno-error=implicit-function-declaration"
+        flags="$flags -Wno-error=int-conversion"
+        flags="$flags -Wno-error=return-mismatch"
+    fi
+    echo "$flags"
+}
+
 # -user switch
 # The instructions below are an abbreviated version from
 # http://www.openflowswitch.org/wk/index.php/Debian_Install
@@ -312,9 +328,16 @@ function of {
     grep -rlw strlcpy --include='*.[ch]' . | \
         xargs -r sed -i 's/\bstrlcpy\b/of_strlcpy/g'
 
+    # gcc 14+ rejects passing uintptr_t* where void** is expected
+    # (-Werror=incompatible-pointer-types), which breaks lib/backtrace.c
+    sed -i 's/backtrace(bt->frames,/backtrace((void **) bt->frames,/' \
+        lib/backtrace.c
+
     # Resume the install:
     ./boot.sh
-    ./configure CFLAGS="-g -O2 -fcommon"
+    # This code predates C23 (gcc 15's default) and the stricter type
+    # checks gcc 14+ turned into errors
+    ./configure CFLAGS="$(old_c_cflags)"
     make
     sudo make install
     cd $BUILD_DIR
@@ -356,7 +379,7 @@ function of13 {
     # Resume the install:
     cd $BUILD_DIR/ofsoftswitch13
     ./boot.sh
-    ./configure
+    ./configure CFLAGS="$(old_c_cflags)"
     make
     sudo make install
     cd $BUILD_DIR

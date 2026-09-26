@@ -27,7 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12", "debian:13"]
+        image: ["ubuntu:22.04", "ubuntu:24.04", "ubuntu:26.04",
+                "debian:12", "debian:13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,4 +52,40 @@ jobs:
               mn --switch lxbr --controller none --test pingall
               MININET_OVS_DATAPATH=user mn --test pingall
               mn --topo linear,3 --link tc,bw=5,delay=2ms --test iperf
+            '
+
+  reference-switch:
+    # util/install.sh -f builds the OpenFlow 1.0 reference implementation,
+    # whose C code predates current compilers: gcc 14 turned several type
+    # mismatches into errors and gcc 15 (Ubuntu 26.04) defaults to C23.
+    name: Reference switch on ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "ubuntu:26.04"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load kernel modules on the host
+        run: sudo modprobe -a openvswitch sch_htb sch_netem
+      - name: Build and run the reference switch in ${{ matrix.image }}
+        run: |
+          docker run --rm --privileged \
+            -v /lib/modules:/lib/modules:ro \
+            -v "$PWD:/src:ro" \
+            "${{ matrix.image }}" bash -c '
+              set -ex
+              cp -a /src /root/mininet
+              cd /root/mininet
+              util/install.sh -nvf
+              gcc --version | head -1
+              ofdatapath --version
+              ofprotocol --version
+              controller --help > /dev/null
+              ovs-vsctl -t 2 show || /usr/share/openvswitch/scripts/ovs-ctl start
+              # --switch user is the reference switch just built
+              mn --switch user --test pingall
+              mn --switch user --controller ref --test pingall
             '
