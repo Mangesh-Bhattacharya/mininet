@@ -7,6 +7,7 @@ These don't need root or Open vSwitch:
   python3 -m unittest mininet.test.test_labconfig -v
 """
 
+import importlib
 import io
 import json
 import os
@@ -20,13 +21,17 @@ from contextlib import redirect_stderr, redirect_stdout
 from mininet import labconfig
 from mininet.labconfig import ConfigError, validate
 
-try:
-    # Building a real network needs Mininet's Linux-only modules;
-    # everything else (checking, drawing, editing) works anywhere
-    import mininet.topo  # noqa: F401  pylint: disable=unused-import
-    HAS_MININET = True
-except ImportError:
-    HAS_MININET = False
+def hasMininet():
+    """Can Mininet's own modules be imported? Building a network needs
+       Linux; checking, drawing and editing labs work anywhere."""
+    try:
+        importlib.import_module( 'mininet.topo' )
+        return True
+    except ImportError:
+        return False
+
+
+HAS_MININET = hasMininet()
 
 needsLinux = unittest.skipUnless( HAS_MININET,
                                   'building a Topo needs Linux' )
