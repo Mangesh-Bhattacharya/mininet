@@ -20,6 +20,17 @@ from contextlib import redirect_stderr, redirect_stdout
 from mininet import labconfig
 from mininet.labconfig import ConfigError, validate
 
+try:
+    # Building a real network needs Mininet's Linux-only modules;
+    # everything else (checking, drawing, editing) works anywhere
+    import mininet.topo  # noqa: F401  pylint: disable=unused-import
+    HAS_MININET = True
+except ImportError:
+    HAS_MININET = False
+
+needsLinux = unittest.skipUnless( HAS_MININET,
+                                  'building a Topo needs Linux' )
+
 
 def paths( error ):
     "Issue paths of a ConfigError"
@@ -42,10 +53,12 @@ class TemplateTests( unittest.TestCase ):
         labconfig.writeTemplate( lang, dest )
         cfg = labconfig.load( dest )
         self.assertEqual( cfg[ 'name' ], 'two-switch-lab' )
-        topo = labconfig.buildTopo( cfg )
-        self.assertEqual( sorted( topo.hosts() ), [ 'h1', 'h2', 'h3' ] )
-        self.assertEqual( sorted( topo.switches() ), [ 's1', 's2' ] )
-        self.assertEqual( len( topo.links() ), 4 )
+        hosts, switches, links = labconfig.expand( cfg )
+        self.assertEqual( sorted( h[ 'name' ] for h in hosts ),
+                          [ 'h1', 'h2', 'h3' ] )
+        self.assertEqual( sorted( s[ 'name' ] for s in switches ),
+                          [ 's1', 's2' ] )
+        self.assertEqual( len( links ), 4 )
         self.assertTrue( labconfig.usesShaping( cfg ) )
         self.assertEqual( cfg[ 'tests' ], [ 'pingall' ] )
 
@@ -61,8 +74,8 @@ class TemplateTests( unittest.TestCase ):
                      'cobol' ):
             lang = labconfig.languageByKey( key )
             with self.subTest( lang=key ):
-                if not lang.available() and key != 'python':
-                    self.skipTest( '%s not installed' % lang.tools[ 0 ] )
+                if not lang.available():
+                    self.skipTest( lang.missing() )
                 self.checkTemplate( key )
 
     def testEveryLanguageHasATemplate( self ):
@@ -99,8 +112,10 @@ class ValidationTests( unittest.TestCase ):
         "An empty config is the default two-host network"
         cfg = validate( {} )
         self.assertEqual( cfg[ 'topology' ], { 'type': 'minimal' } )
-        topo = labconfig.buildTopo( cfg )
-        self.assertEqual( len( topo.hosts() ), 2 )
+        hosts, switches, links = labconfig.expand( cfg )
+        self.assertEqual( len( hosts ), 2 )
+        self.assertEqual( len( switches ), 1 )
+        self.assertEqual( len( links ), 2 )
 
     def testBuiltInTopologies( self ):
         "single, linear, tree"
@@ -108,17 +123,16 @@ class ValidationTests( unittest.TestCase ):
                   ( { 'type': 'linear', 'switches': 3, 'hosts': 2 }, 6, 3 ),
                   ( { 'type': 'tree', 'depth': 2, 'fanout': 3 }, 9, 4 ) ]
         for topology, hosts, switches in cases:
-            topo = labconfig.buildTopo( validate( { 'topology': topology } ) )
-            self.assertEqual( len( topo.hosts() ), hosts )
-            self.assertEqual( len( topo.switches() ), switches )
+            model = labconfig.expand( validate( { 'topology': topology } ) )
+            self.assertEqual( len( model[ 0 ] ), hosts )
+            self.assertEqual( len( model[ 1 ] ), switches )
 
     def testTopologyLinkOptions( self ):
         "topology.link shapes every link"
         cfg = validate( { 'topology': { 'type': 'single', 'hosts': 2,
                                         'link': { 'bw': 5 } } } )
-        topo = labconfig.buildTopo( cfg )
-        for _src, _dst, info in topo.links( withInfo=True ):
-            self.assertEqual( info[ 'bw' ], 5 )
+        for link in labconfig.expand( cfg )[ 2 ]:
+            self.assertEqual( link[ 'bw' ], 5 )
 
     def testUnknownKeySuggestion( self ):
         "Typos get a did-you-mean hint"
@@ -234,6 +248,7 @@ class TopologyModelTests( unittest.TestCase ):
               { 'type': 'tree', 'depth': 3, 'fanout': 2 },
               { 'type': 'tree', 'depth': 2, 'fanout': 3 } ]
 
+    @needsLinux
     def testMatchesMininet( self ):
         "expand() produces exactly Mininet's nodes and links"
         for topology in self.cases:
@@ -323,6 +338,7 @@ class DumpTests( unittest.TestCase ):
         self.assertIn( 'remote', text )
 
 
+@needsLinux
 class BuildTests( unittest.TestCase ):
     "Configurations map onto Mininet classes"
 
@@ -358,10 +374,13 @@ class BuildTests( unittest.TestCase ):
         cfg = validate( { 'hosts': [ { 'name': 'h1', 'ip': '10.1.0.1/16',
                                        'mac': '00:00:00:00:00:0a',
                                        'gateway': '10.1.0.254' } ] } )
-        info = labconfig.buildTopo( cfg ).nodeInfo( 'h1' )
-        self.assertEqual( info[ 'ip' ], '10.1.0.1/16' )
-        self.assertEqual( info[ 'mac' ], '00:00:00:00:00:0a' )
-        self.assertEqual( info[ 'defaultRoute' ], 'via 10.1.0.254' )
+        host = labconfig.expand( cfg )[ 0 ][ 0 ]
+        self.assertEqual( host[ 'ip' ], '10.1.0.1/16' )
+        self.assertEqual( host[ 'mac' ], '00:00:00:00:00:0a' )
+        self.assertEqual( host[ 'gateway' ], '10.1.0.254' )
+        if HAS_MININET:
+            info = labconfig.buildTopo( cfg ).nodeInfo( 'h1' )
+            self.assertEqual( info[ 'defaultRoute' ], 'via 10.1.0.254' )
 
     def testGraph( self ):
         "Graph for the GUI"
@@ -398,8 +417,8 @@ class ProgramTests( unittest.TestCase ):
         path = self.program(
             'import json\nprint(json.dumps('
             '{"topology": {"type": "single", "hosts": 3}}))\n' )
-        topo = labconfig.buildTopo( labconfig.load( path ) )
-        self.assertEqual( len( topo.hosts() ), 3 )
+        hosts = labconfig.expand( labconfig.load( path ) )[ 0 ]
+        self.assertEqual( len( hosts ), 3 )
 
     def testNotJson( self ):
         "Garbage output is explained"
@@ -427,6 +446,7 @@ class ProgramTests( unittest.TestCase ):
         with self.assertRaises( ConfigError ) as ctx:
             labconfig.runProgram( 'lab.x', lang )
         self.assertIn( 'not installed', str( ctx.exception ) )
+        self.assertFalse( lang.available() )
 
     def testUnknownExtension( self ):
         "Unknown file types"
@@ -439,7 +459,8 @@ class ProgramTests( unittest.TestCase ):
         try:
             os.environ[ 'SUDO_UID' ] = '1000'
             os.environ[ 'SUDO_GID' ] = '1000'
-            expected = ( 1000, 1000 ) if os.geteuid() == 0 else None
+            root = hasattr( os, 'geteuid' ) and os.geteuid() == 0
+            expected = ( 1000, 1000 ) if root else None
             self.assertEqual( labconfig.sudoUser(), expected )
         finally:
             os.environ.clear()
@@ -477,9 +498,10 @@ class CommandLineTests( unittest.TestCase ):
         self.assertEqual( code, 0 )
         self.assertIn( 'COBOL', out )
 
+    @needsLinux
     def testRunNeedsRoot( self ):
         "run refuses to start without root"
-        if os.geteuid() == 0:
+        if hasattr( os, 'geteuid' ) and os.geteuid() == 0:
             self.skipTest( 'running as root' )
         path = labconfig.templatePath( labconfig.languageByKey( 'json' ) )
         code, _, err = self.mnconfig( 'run', path )

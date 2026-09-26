@@ -138,8 +138,10 @@ def check_network( page, outdir, suffix ):
     page.locator( '#btn-start' ).click()
     wait_for( page, "document.getElementById( 'status-pill' ).textContent"
                     " === 'Running'" )
-    expect( page.locator( '#graph circle.halo[visibility=visible]' ) ) \
-        .to_have_count( 3 )
+    # Every host lights up; the editor pass may have added one
+    page.wait_for_function(
+        "() => document.querySelectorAll"
+        "( '#graph circle.halo[visibility=visible]' ).length >= 3" )
 
     page.locator( '#btn-pingall' ).click()
     expect( page.locator( '#ping-result' ) ).to_contain_text(

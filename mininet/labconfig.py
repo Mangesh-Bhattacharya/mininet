@@ -128,23 +128,47 @@ DELAY_RE = re.compile( r'^\d+(\.\d+)?(us|ms|s)$' )
 PROTOCOLS_RE = re.compile( r'^OpenFlow1[0-5](,OpenFlow1[0-5])*$' )
 
 
+def _dotnetSdks():
+    "Installed .NET SDKs (the runtime alone cannot build anything)"
+    if not shutil.which( 'dotnet' ):
+        return ''
+    try:
+        result = subprocess.run( [ 'dotnet', '--list-sdks' ], check=False,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.DEVNULL, timeout=60 )
+    except ( OSError, subprocess.TimeoutExpired ):
+        return ''
+    return result.stdout.decode( 'utf-8', 'replace' ).strip()
+
+
 class Language( object ):
     "A configuration language and how to turn its files into data"
 
-    def __init__( self, key, title, extensions, tools=() ):
+    # pylint: disable=too-many-arguments
+    def __init__( self, key, title, extensions, tools=(), needs=None ):
         self.key = key
         self.title = title
         self.extensions = extensions
         self.tools = tools
+        self.needs = needs   # extra check, and what to say when it fails
         self.template = ( 'Lab' if key == 'java' else 'lab' ) + extensions[ 0 ]
 
     def isData( self ):
         "Is this a data format (rather than a program)?"
         return not self.tools
 
+    def missing( self ):
+        "What is missing before this language can be used, if anything"
+        absent = [ t for t in self.tools if not shutil.which( t ) ]
+        if absent:
+            return 'needs %s, which is not installed' % ', '.join( absent )
+        if self.needs and not self.needs[ 0 ]():
+            return self.needs[ 1 ]
+        return None
+
     def available( self ):
-        "Are the tools this language needs installed?"
-        return all( shutil.which( tool ) for tool in self.tools )
+        "Can this language be used on this machine?"
+        return self.missing() is None
 
 
 # Starter templates are templates/lab<first extension> (Lab.java)
@@ -154,7 +178,10 @@ LANGUAGES = [
     Language( 'python', 'Python', ( '.py', ), ( 'python3', ) ),
     Language( 'c', 'C', ( '.c', ), ( 'gcc', ) ),
     Language( 'cpp', 'C++', ( '.cpp', '.cc', '.cxx' ), ( 'g++', ) ),
-    Language( 'csharp', 'C#', ( '.cs', ), ( 'dotnet', ) ),
+    Language( 'csharp', 'C#', ( '.cs', ), ( 'dotnet', ),
+              needs=( lambda: bool( _dotnetSdks() ),
+                      'found the .NET runtime but no SDK, which is '
+                      'needed to build it' ) ),
     Language( 'java', 'Java', ( '.java', ), ( 'java', ) ),
     Language( 'ruby', 'Ruby', ( '.rb', ), ( 'ruby', ) ),
     Language( 'cobol', 'COBOL', ( '.cob', '.cbl' ), ( 'cobc', ) ),
@@ -395,11 +422,10 @@ def programCommands( lang, src, workdir ):
 def runProgram( path, lang ):
     """Build and run a configuration program; parse the JSON it prints.
        When running under sudo, the program runs as the invoking user."""
-    missing = [ t for t in lang.tools if not shutil.which( t ) ]
+    missing = lang.missing()
     if missing:
         raise ConfigError( Issue(
-            path, '%s configs need %s, which is not installed' %
-            ( lang.title, ', '.join( missing ) ),
+            path, '%s configs: %s' % ( lang.title, missing ),
             'see "Installing language toolchains" in '
             'docs/configuration.md, or use a YAML config' ) )
     ids = sudoUser()
@@ -1134,10 +1160,10 @@ def _cmdRun( args ):
 def _cmdLanguages( _args ):
     "mn-config languages"
     for lang in LANGUAGES:
-        tools = ', '.join( lang.tools ) or '-'
-        state = 'ready' if lang.available() else 'install ' + tools
+        missing = lang.missing()
         print( '%-8s %-7s %-18s %s' % (
-            lang.key, lang.title, ' '.join( lang.extensions ), state ) )
+            lang.key, lang.title, ' '.join( lang.extensions ),
+            missing or 'ready' ) )
     return 0
 
 
