@@ -806,7 +806,7 @@ def expand( cfg ):
         return ( list( cfg[ 'hosts' ] ), list( cfg[ 'switches' ] ),
                  list( cfg[ 'links' ] ) )
     hosts, switches, links = _builtinTopology( topo )
-    options = { k: v for k, v in topo.get( 'link', {} ).items() }
+    options = dict( topo.get( 'link', {} ) )
     return ( [ { 'name': h } for h in hosts ],
              [ { 'name': s } for s in switches ],
              [ dict( options, **{ 'from': a, 'to': b } )
