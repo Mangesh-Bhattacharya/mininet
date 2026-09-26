@@ -82,7 +82,7 @@ docker run --rm -it --privileged -p 127.0.0.1:8080:8080 -v "$PWD:/workspace" \
 
 ### Ubuntu or Debian — native install
 
-Ubuntu 22.04/24.04 and Debian 12/13:
+Ubuntu 22.04, 24.04 and 26.04, Debian 12/13:
 
 ```bash
 git clone https://github.com/Mangesh-Bhattacharya/mininet.git
@@ -245,11 +245,12 @@ Everything below is tested automatically on every change and every week:
 | Platform | Tested |
 |----------|--------|
 | Ubuntu 22.04, 24.04 (native) | install, `pingall` with OVS kernel and userspace datapaths, Linux bridge, shaped links, Mininet's full core and example test suites |
-| Ubuntu 22.04/24.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
+| Ubuntu 22.04/24.04/26.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
 | Docker image, amd64 and arm64 | networks, lab configs, the GUI, vulnerability scan |
 | Browser GUI | driven in Chromium against a real network, light and dark mode; fails on any browser console error |
 | Lab configs | all nine languages build and run a real network |
 | Debian package | built, installed and used to run a network |
+| OpenFlow reference switch | built and run on gcc 13 (Ubuntu 24.04) and gcc 15 (Ubuntu 26.04) |
 | macOS, Windows | Docker launchers (bash 3.2, PowerShell 5.1/7, `cmd`, Git Bash), `mn-doctor` guidance |
 | Python 3.9 – 3.14 | unit tests for `mn-doctor`, `mn-config` and `mn-gui` (including its security checks) |
 

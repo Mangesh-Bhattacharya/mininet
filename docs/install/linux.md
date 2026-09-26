@@ -5,7 +5,7 @@ Mininet feature. It is tested in CI on:
 
 | Distribution | Versions |
 |--------------|----------|
-| Ubuntu | 22.04 LTS, 24.04 LTS (native runners and containers) |
+| Ubuntu | 22.04 LTS, 24.04 LTS, 26.04 LTS (native runners and containers) |
 | Debian | 12 "bookworm", 13 "trixie" (containers) |
 
 Derivatives such as Linux Mint, Pop!_OS, Kali and Raspberry Pi OS are
