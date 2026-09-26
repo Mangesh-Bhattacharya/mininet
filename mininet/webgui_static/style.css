@@ -15,6 +15,15 @@
   --switch: #0f766e;
   --controller: #9333ea;
   --edge: #94a3b8;
+  --link: #1d4ed8;
+  --link-control: #dc2626;
+  --dev-body: #e8ecf3;
+  --dev-edge: #9aa6bb;
+  --dev-screen: #1e2836;
+  --switch: #0e7490;
+  --switch-edge: #0b5c73;
+  --ctrl: #9aa3b2;
+  --ctrl-edge: #6b7486;
   --code-bg: #f1f3f7;
   --radius: 10px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -38,6 +47,15 @@
     --switch: #2dd4bf;
     --controller: #c084fc;
     --edge: #5b6b82;
+    --link: #60a5fa;
+    --link-control: #f87171;
+    --dev-body: #243044;
+    --dev-edge: #44536b;
+    --dev-screen: #0b1018;
+    --switch: #14b8a6;
+    --switch-edge: #0f8a7e;
+    --ctrl: #7c8699;
+    --ctrl-edge: #5a6478;
     --code-bg: #0c1117;
   }
 }
@@ -126,37 +144,64 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .lg.switch { border-radius: 2px; background: var(--switch); }
 .lg.controller { transform: rotate(45deg); background: var(--controller); }
 
-/* Topology editor: palette on the left, canvas on the right */
+/* Topology editor: palette on the left, canvas on the right.
+   Device icons and link colours follow the original MiniEdit. */
 .head-right { display: flex; align-items: center; gap: 10px; }
 .small-btn { padding: 3px 9px; font-size: 0.82rem; }
 .editor-area { display: flex; gap: 10px; margin-top: 8px; }
 .palette {
-  display: flex; flex-direction: column; gap: 6px; padding: 6px;
-  background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
-  align-self: flex-start;
+  display: flex; flex-direction: column; gap: 6px; padding: 7px;
+  background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: 12px; align-self: stretch;
 }
 .palette .tool {
-  width: 38px; height: 38px; padding: 0; display: grid; place-items: center;
-  background: var(--panel); border-radius: 8px;
+  width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
+  background: var(--panel); border-radius: 9px; transition: background .12s, border-color .12s;
 }
-.palette .tool svg { width: 20px; height: 20px; fill: var(--text); stroke: var(--text); stroke-width: 0; }
-.palette .tool[data-tool="link"] svg, .palette .tool[data-tool="delete"] svg { fill: none; }
+.palette .tool svg { width: 26px; height: 26px; }
+.palette .tool .body { fill: var(--dev-body); stroke: var(--dev-edge); stroke-width: 1.2; }
+.palette .tool .screen { fill: var(--dev-screen); }
+.palette .tool .glyph { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.palette .tool .glyph-fill { fill: var(--text); }
 .palette .tool[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
-.palette .tool[aria-pressed="true"] svg { fill: var(--accent-text); stroke: var(--accent-text); }
-.palette .tool[data-tool="link"][aria-pressed="true"] svg,
-.palette .tool[data-tool="delete"][aria-pressed="true"] svg { fill: none; }
-.legend-v { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 0.7rem; color: var(--muted); }
-.legend-v span { display: flex; align-items: center; gap: 3px; }
+.palette .tool[aria-pressed="true"] .glyph { stroke: var(--accent-text); }
+.palette .tool[aria-pressed="true"] .glyph-fill { fill: var(--accent-text); }
+.palette .tool[aria-pressed="true"] .body { stroke: var(--accent-text); }
+.palette-run { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }
+.palette-run button {
+  width: 42px; padding: 6px 0; font-size: 0.78rem; font-weight: 650; border-radius: 9px;
+}
+.palette-run .run { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+.palette-run .stop { color: var(--bad); border-color: var(--bad); background: var(--bad-bg); }
+.palette-run button:disabled { opacity: .4; }
 
 #graph { flex: 1; min-width: 0; height: clamp(320px, 58vh, 620px); display: block; }
 #graph[data-tool="host"], #graph[data-tool="switch"] { cursor: crosshair; }
 #graph[data-tool="link"] .node, #graph[data-tool="delete"] .node { cursor: pointer; }
 #graph .node { cursor: grab; }
-#graph .node.selected > :not(text):not(title) { stroke: var(--accent); stroke-width: 3; }
-#graph .node.linking > :not(text):not(title) { stroke: var(--controller); stroke-width: 3; }
+#graph .icon .body { fill: var(--dev-body); stroke: var(--dev-edge); stroke-width: 1.3; }
+#graph .icon.switch .body { fill: var(--switch); stroke: var(--switch-edge); }
+#graph .icon.controller .body { fill: var(--ctrl); stroke: var(--ctrl-edge); }
+#graph .icon .screen { fill: var(--dev-screen); }
+#graph .icon .glyph { fill: none; stroke: #fff; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+#graph .icon .slot { fill: var(--dev-screen); opacity: .85; }
+#graph .icon .led { fill: var(--ok); }
+#graph .node.selected .halo { visibility: visible !important; stroke: var(--accent); stroke-width: 2.5; fill: none; }
+#graph .node.linking .halo { visibility: visible !important; stroke: var(--controller); stroke-width: 2.5; fill: none; }
+#graph .halo { fill: none; stroke: var(--ok); stroke-width: 2.5; }
+#graph .edge { stroke: var(--link); stroke-width: 2.5; stroke-linecap: round; }
+#graph .edge.control { stroke: var(--link-control); stroke-width: 1.8; stroke-dasharray: 9 4 2 4; }
 #graph .edge.clickable { cursor: pointer; }
 #graph .edge.selected { stroke: var(--accent); stroke-width: 4; }
-
+#graph .edge-label {
+  fill: var(--muted); font-size: 11px;
+  paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
+}
+#graph .node-label {
+  fill: var(--text); font-size: 12px; font-weight: 600;
+  paint-order: stroke; stroke: var(--panel); stroke-width: 3.5px; stroke-linejoin: round;
+}
+#graph .empty { fill: var(--muted); font-size: 14px; }
 /* Properties of the selected node or link */
 .props { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
 .prop-form h3 { margin: 0 0 8px; font-size: 0.9rem; }
@@ -165,19 +210,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   gap: 6px 10px; align-items: center; font-size: 0.85rem;
 }
 .prop-grid input { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; }
-#graph .edge { stroke: var(--edge); stroke-width: 2; }
-#graph .edge.control { stroke-dasharray: 4 5; stroke-width: 1.2; opacity: 0.7; }
-#graph .edge-label {
-  fill: var(--muted); font-size: 11px;
-  /* outline in the panel colour keeps labels readable over lines */
-  paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
-}
-#graph .node-label { fill: var(--text); font-size: 12px; font-weight: 600; }
-#graph .host { fill: var(--host); }
-#graph .switch { fill: var(--switch); }
-#graph .controller { fill: var(--controller); }
-#graph .halo { fill: none; stroke: var(--ok); stroke-width: 3; opacity: 0.6; }
-#graph .empty { fill: var(--muted); font-size: 14px; }
 .summary { white-space: pre-line; font-size: 0.85rem; margin: 8px 0 0; }
 
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: -4px -4px 12px; flex-wrap: wrap; }

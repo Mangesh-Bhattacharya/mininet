@@ -35,10 +35,10 @@ def check_config_and_validation( page, outdir, suffix ):
     expect( page.locator( '#status-pill' ) ).to_have_text(
         re.compile( 'Stopped|Running' ), timeout=TIMEOUT )
     # 3 hosts in the starter lab, 4 once the editor pass has added one
-    expect( page.locator( '#graph rect.switch' ) ).to_have_count( 2 )
+    expect( page.locator( '#graph g[data-kind=switch]' ) ).to_have_count( 2 )
     page.wait_for_function(
         "() => document.querySelectorAll"
-        "( '#graph circle.host' ).length >= 3" )
+        "( '#graph g[data-kind=host]' ).length >= 3" )
     expect( page.locator( '#editor' ) ).to_have_value(
         re.compile( 'two-switch-lab' ) )
     shot( page, outdir, 'gui-overview%s.png' % suffix )
@@ -141,7 +141,7 @@ def check_network( page, outdir, suffix ):
     # Every host lights up; the editor pass may have added one
     page.wait_for_function(
         "() => document.querySelectorAll"
-        "( '#graph circle.halo[visibility=visible]' ).length >= 3" )
+        "( '#graph .halo[visibility=visible]' ).length >= 3" )
 
     page.locator( '#btn-pingall' ).click()
     expect( page.locator( '#ping-result' ) ).to_contain_text(

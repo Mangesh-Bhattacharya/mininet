@@ -155,7 +155,9 @@ sudo mn-gui --config lab.yaml          # then open the URL it prints
 | <img src="docs/images/gui-validation.png" alt="Editing the configuration: two mistakes are reported with hints and Save is disabled"> | <img src="docs/images/gui-console.png" alt="The console tab: a ping from h1 to h3 and an iperf bandwidth measurement"> |
 | **Edit with instant checking** — mistakes are listed with hints, and Save stays disabled until the file is valid. | **Run commands on any host** and measure bandwidth with iperf. |
 
-- Live topology drawing (hosts, switches, controller, link speeds and delays)
+- A MiniEdit-style topology editor: palette, device icons, drag to
+  place, click two nodes to link, properties for addresses and link
+  speeds - saved straight into your lab file
 - Start / stop the network, ping matrix, node console, iperf
 - A **Guide** tab listing every setting as *edit freely*, *advanced* or *do not edit*
 - Light and dark mode; works from the browser on your Windows or Mac

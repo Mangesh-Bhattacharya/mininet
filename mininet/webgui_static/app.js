@@ -458,72 +458,75 @@ function showProperties() {
 
 // ---------------------------------------------------------------- graph
 
+function naturalKey(id) {
+  const m = /^([a-zA-Z]*)(\d*)(.*)$/.exec(id) || [];
+  return [m[1] || '', Number(m[2] || 0), m[3] || ''];
+}
+
+function byName(a, b) {
+  const ka = naturalKey(a.id), kb = naturalKey(b.id);
+  return ka[0].localeCompare(kb[0]) || ka[1] - kb[1] || ka[2].localeCompare(kb[2]);
+}
+
+// Lay the topology out the way MiniEdit does: hosts along the top,
+// switches in the middle, the controller at the bottom. Nodes the user
+// has placed keep their position; only the rest are arranged.
+const ROW = { host: 0.22, switch: 0.55, controller: 0.87 };
+
 function layout(graph, width, height, force) {
-  // Nodes with saved positions stay where they are; the rest get a
-  // small force-directed layout, starting from a circle so it is stable
-  const nodes = graph.nodes.map((n, i) => {
-    const angle = (2 * Math.PI * i) / Math.max(graph.nodes.length, 1);
-    const fixed = !force && typeof n.x === 'number' && typeof n.y === 'number';
-    return {
-      ...n, fixed,
-      x: fixed ? n.x : width / 2 + Math.cos(angle) * width / 3,
-      y: fixed ? n.y : height / 2 + Math.sin(angle) * height / 3,
-    };
-  });
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const edges = graph.links.map((l) => [byId.get(l.from), byId.get(l.to), l]).filter((e) => e[0] && e[1]);
-  const loose = nodes.filter((n) => !n.fixed);
-  if (loose.length) {
-    const k = Math.sqrt((width * height) / Math.max(nodes.length, 1)) * 0.55;
-    for (let step = 0; step < 300; step++) {
-      const temperature = 30 * (1 - step / 300) + 0.5;
-      for (const n of nodes) { n.dx = 0; n.dy = 0; }
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j];
-          let dx = a.x - b.x, dy = a.y - b.y;
-          const d = Math.max(Math.hypot(dx, dy), 0.01);
-          const f = (k * k) / d;
-          dx /= d; dy /= d;
-          a.dx += dx * f; a.dy += dy * f;
-          b.dx -= dx * f; b.dy -= dy * f;
-        }
-      }
-      for (const [a, b, link] of edges) {
-        let dx = a.x - b.x, dy = a.y - b.y;
-        const d = Math.max(Math.hypot(dx, dy), 0.01);
-        const f = ((d * d) / k) * (link.control ? 0.15 : 1);
-        dx /= d; dy /= d;
-        a.dx -= dx * f; a.dy -= dy * f;
-        b.dx += dx * f; b.dy += dy * f;
-      }
-      for (const n of nodes) {
-        if (n.fixed) continue;
-        n.dx += (width / 2 - n.x) * 0.02;
-        n.dy += (height / 2 - n.y) * 0.02;
-        const d = Math.max(Math.hypot(n.dx, n.dy), 0.01);
-        n.x += (n.dx / d) * Math.min(d, temperature);
-        n.y += (n.dy / d) * Math.min(d, temperature);
-      }
-    }
-    if (!nodes.some((n) => n.fixed)) {
-      const pad = 56;
-      const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const scale = Math.min((width - 2 * pad) / Math.max(maxX - minX, 1),
-        (height - 2 * pad) / Math.max(maxY - minY, 1), 1.5);
-      for (const n of nodes) {
-        n.x = width / 2 + (n.x - (minX + maxX) / 2) * scale;
-        n.y = height / 2 + (n.y - (minY + maxY) / 2) * scale;
-      }
-    }
+  const nodes = graph.nodes.map((n) => ({
+    ...n,
+    fixed: !force && typeof n.x === 'number' && typeof n.y === 'number',
+  }));
+  for (const kind of ['host', 'switch', 'controller']) {
+    const row = nodes.filter((n) => n.kind === kind).sort(byName);
+    const loose = row.filter((n) => !n.fixed);
+    loose.forEach((n, i) => {
+      // spread evenly across the row, in name order
+      n.x = ((i + 1) / (loose.length + 1)) * width;
+      n.y = ROW[kind] * height;
+    });
   }
   for (const n of nodes) {
-    n.x = Math.min(Math.max(n.x, 28), width - 28);
-    n.y = Math.min(Math.max(n.y, 28), height - 34);
+    n.x = Math.min(Math.max(n.x, 34), width - 34);
+    n.y = Math.min(Math.max(n.y, 30), height - 30);
   }
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edges = graph.links
+    .map((l) => [byId.get(l.from), byId.get(l.to), l])
+    .filter((e) => e[0] && e[1]);
   return { nodes, edges };
+}
+// Device icons, in MiniEdit's arrangement: a monitor for a host, a
+// switch, and a rack for the controller - drawn as flat SVG so they
+// stay sharp at any zoom and follow the light/dark theme
+const ICON_SIZE = { host: [46, 40], switch: [52, 28], controller: [40, 42] };
+
+function deviceIcon(kind, x, y) {
+  const g = svg('g', { class: 'icon ' + kind });
+  if (kind === 'host') {
+    g.append(svg('rect', { class: 'body', x: x - 23, y: y - 20, width: 46, height: 32, rx: 4 }));
+    g.append(svg('rect', { class: 'screen', x: x - 18, y: y - 15.5, width: 36, height: 21, rx: 2 }));
+    g.append(svg('rect', { class: 'body', x: x - 5, y: y + 11, width: 10, height: 5 }));
+    g.append(svg('rect', { class: 'body', x: x - 13, y: y + 15, width: 26, height: 4, rx: 2 }));
+  } else if (kind === 'switch') {
+    g.append(svg('rect', { class: 'body', x: x - 26, y: y - 14, width: 52, height: 28, rx: 6 }));
+    g.append(svg('path', {
+      class: 'glyph',
+      d: `M ${x - 15} ${y - 5} H ${x + 11} M ${x + 6} ${y - 10} L ${x + 13} ${y - 5} L ${x + 6} ${y}`,
+    }));
+    g.append(svg('path', {
+      class: 'glyph',
+      d: `M ${x + 15} ${y + 6} H ${x - 11} M ${x - 6} ${y + 1} L ${x - 13} ${y + 6} L ${x - 6} ${y + 11}`,
+    }));
+  } else {
+    g.append(svg('rect', { class: 'body', x: x - 20, y: y - 21, width: 40, height: 42, rx: 5 }));
+    for (const dy of [-13, -1, 11]) {
+      g.append(svg('rect', { class: 'slot', x: x - 14, y: y + dy, width: 28, height: 8, rx: 2 }));
+      g.append(svg('circle', { class: 'led', cx: x + 9, cy: y + dy + 4, r: 1.8 }));
+    }
+  }
+  return g;
 }
 
 function isSelectedNode(id) {
@@ -570,8 +573,13 @@ function drawGraph(graph) {
     }
     edgeLayer.append(line);
     if (link.label) {
+      // Offset the label perpendicular to the link so it clears the icons
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.max(Math.hypot(dx, dy), 1);
       labelLayer.append(svg('text', {
-        x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 6, 'text-anchor': 'middle', class: 'edge-label',
+        x: (a.x + b.x) / 2 - (dy / len) * 11,
+        y: (a.y + b.y) / 2 + (dx / len) * 11 + 4,
+        'text-anchor': 'middle', class: 'edge-label',
       }, link.label));
     }
   }
@@ -582,18 +590,23 @@ function drawGraph(graph) {
         (state.linkStart === n.id ? ' linking' : ''),
     });
     group.append(svg('title', {}, n.kind + ' ' + n.id));
-    if (n.kind === 'host') {
-      group.append(svg('circle', { class: 'halo', cx: n.x, cy: n.y, r: 20, visibility: 'hidden' }));
-      group.append(svg('circle', { class: 'host', cx: n.x, cy: n.y, r: 14 }));
-    } else if (n.kind === 'switch') {
-      group.append(svg('rect', { class: 'switch', x: n.x - 17, y: n.y - 12, width: 34, height: 24, rx: 5 }));
-    } else {
-      group.append(svg('rect', {
-        class: 'controller', x: n.x - 11, y: n.y - 11, width: 22, height: 22,
-        transform: `rotate(45 ${n.x} ${n.y})`,
-      }));
-    }
-    group.append(svg('text', { x: n.x, y: n.y + 32, 'text-anchor': 'middle', class: 'node-label' }, n.id));
+    group.append(svg('rect', {
+      class: 'halo', x: n.x - ICON_SIZE[n.kind][0] / 2 - 6,
+      y: n.y - ICON_SIZE[n.kind][1] / 2 - 6,
+      width: ICON_SIZE[n.kind][0] + 12, height: ICON_SIZE[n.kind][1] + 12,
+      rx: 9, visibility: 'hidden',
+    }));
+    group.append(svg('rect', {
+      class: 'hit', x: n.x - ICON_SIZE[n.kind][0] / 2 - 4,
+      y: n.y - ICON_SIZE[n.kind][1] / 2 - 4,
+      width: ICON_SIZE[n.kind][0] + 8, height: ICON_SIZE[n.kind][1] + 8,
+      rx: 8, fill: 'transparent',
+    }));
+    group.append(deviceIcon(n.kind, n.x, n.y));
+    group.append(svg('text', {
+      x: n.x, y: n.y + ICON_SIZE[n.kind][1] / 2 + 15,
+      'text-anchor': 'middle', class: 'node-label',
+    }, n.id));
     if (n.kind !== 'controller') wireNode(group, n);
     nodeLayer.append(group);
   }
@@ -644,7 +657,10 @@ function wireNode(group, node) {
     }
     if (!canEdit()) { select({ kind: 'node', id: node.id }); return; }
     const start = canvasPoint(event);
-    drag = { moved: false, dx: node.x - start.x, dy: node.y - start.y };
+    drag = {
+      moved: false, dx: node.x - start.x, dy: node.y - start.y,
+      originX: node.x, originY: node.y,
+    };
     group.setPointerCapture(event.pointerId);
   });
   group.addEventListener('pointermove', (event) => {
@@ -653,7 +669,11 @@ function wireNode(group, node) {
     const x = point.x + drag.dx, y = point.y + drag.dy;
     if (Math.hypot(x - node.x, y - node.y) > 2) drag.moved = true;
     node.x = x; node.y = y;
-    moveNodeShapes(group, node);
+    // Move the whole icon, then follow with its links
+    group.setAttribute('transform',
+      `translate(${x - drag.originX}, ${y - drag.originY})`);
+    state.positions.set(node.id, { x, y });
+    redrawEdges();
   });
   group.addEventListener('pointerup', (event) => {
     if (!drag) return;
@@ -663,21 +683,6 @@ function wireNode(group, node) {
     if (moved) action(null, () => moveNode(node.id, node.x, node.y));
     else select({ kind: 'node', id: node.id });
   });
-}
-
-function moveNodeShapes(group, node) {
-  for (const shape of group.children) {
-    if (shape.tagName === 'circle') { shape.setAttribute('cx', node.x); shape.setAttribute('cy', node.y); }
-    else if (shape.tagName === 'rect') {
-      const w = Number(shape.getAttribute('width')), h = Number(shape.getAttribute('height'));
-      shape.setAttribute('x', node.x - w / 2);
-      shape.setAttribute('y', node.y - h / 2);
-    } else if (shape.tagName === 'text') {
-      shape.setAttribute('x', node.x); shape.setAttribute('y', node.y + 32);
-    }
-  }
-  state.positions.set(node.id, { x: node.x, y: node.y });
-  redrawEdges();
 }
 
 function redrawEdges() {
