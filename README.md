@@ -109,6 +109,20 @@ Details: [docs/install/windows.md](docs/install/windows.md).
 Use the `docker run` above, or a Linux VM with Multipass/UTM/Vagrant —
 [docs/install/macos.md](docs/install/macos.md).
 
+### Design labs without Linux
+
+Running a network needs a Linux kernel, but writing, checking and
+drawing one does not. On Windows or macOS itself:
+
+```bash
+python3 -m pip install ".[yaml]"   # Windows: py -m pip install ".[yaml]"
+mn-config init --lang yaml -o lab.yaml
+mn-config validate lab.yaml
+mn-gui --config lab.yaml           # the topology editor, in your browser
+```
+
+Then run `lab.yaml` in Docker, WSL 2 or a VM.
+
 ### Any virtual machine
 
 ```bash

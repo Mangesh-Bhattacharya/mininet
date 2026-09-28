@@ -70,10 +70,15 @@ jobs:
           bin=env/bin
           [ -d "$bin" ] || bin=env/Scripts
           "$bin/python" -m pip install --quiet "$( ls dist/*.whl )[yaml]"
-          "$bin/python" "$bin/mn-config" init --lang yaml -o lab.yaml
-          "$bin/python" "$bin/mn-config" validate lab.yaml
-          "$bin/python" "$bin/mn-config" show lab.yaml
-          "$bin/python" "$bin/mn-config" schema > /dev/null
+          # by name, as a user runs them: pip must have made the
+          # wrappers (mn-config.exe and friends on Windows)
+          export PATH="$PWD/$bin:$PATH"
+          mn-config init --lang yaml -o lab.yaml
+          mn-config validate lab.yaml
+          mn-config show lab.yaml
+          mn-config schema > /dev/null
+          mn-config init --lang python -o lab.py
+          mn-config validate lab.py
           "$bin/python" - <<'PY'
           import os
           import mininet, mininet.examples, mininet.labconfig, mininet.webgui

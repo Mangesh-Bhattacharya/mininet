@@ -25,8 +25,14 @@ def readVersion():
 
 VERSION = readVersion()
 
-scripts = [ join( 'bin', filename ) for filename in
-            [ 'mn', 'mn-doctor', 'mn-config', 'mn-gui' ] ]
+# mn is the emulator's own launcher and stays a plain script. The lab
+# tools are installed as entry points instead, so that pip also creates
+# the .exe wrappers Windows needs to run them by name.
+scripts = [ join( 'bin', 'mn' ) ]
+
+consoleScripts = [ 'mn-doctor = mininet.doctor:main',
+                   'mn-config = mininet.labconfig:main',
+                   'mn-gui = mininet.webgui:main' ]
 
 modname = distname = 'mininet'
 
@@ -64,4 +70,5 @@ setup(
     # languages work without it
     extras_require={ 'yaml': [ 'PyYAML' ] },
     scripts=scripts,
+    entry_points={ 'console_scripts': consoleScripts },
 )

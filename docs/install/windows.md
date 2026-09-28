@@ -10,6 +10,9 @@ Mininet needs a Linux kernel, so on Windows it runs inside Linux. Pick one:
 
 Run `mn-doctor` in any of them to check your setup.
 
+You can also install the lab tools **on Windows itself** to write,
+check and draw labs before you run them (option D below).
+
 ---
 
 ## A. WSL 2 (recommended)
@@ -95,6 +98,35 @@ or create an Ubuntu 24.04 VM by hand and follow the
 > **Hyper-V note:** VirtualBox and VMware work alongside Hyper-V/WSL 2 on
 > current versions, but nested virtualization is slower. If a VM is very
 > slow, prefer WSL 2.
+
+---
+
+## D. Design labs on Windows itself
+
+The emulator needs Linux, but writing, checking and drawing a lab does
+not. Install the package in PowerShell:
+
+```powershell
+git clone https://github.com/Mangesh-Bhattacharya/mininet.git
+cd mininet
+py -m pip install ".[yaml]"
+```
+
+Then, natively on Windows:
+
+```powershell
+mn-config init --lang yaml -o lab.yaml   # or python, c, cpp, csharp, java, ruby, cobol, json
+mn-config validate lab.yaml
+mn-gui --config lab.yaml                 # the topology editor, in your browser
+```
+
+`mn-gui` here edits and checks the file and draws the topology; **Run**
+needs Linux. Keep `lab.yaml` in a folder you share with WSL 2, Docker or
+your VM (options A-C) and run it there:
+
+```powershell
+wsl sudo mn-config run lab.yaml
+```
 
 ---
 
