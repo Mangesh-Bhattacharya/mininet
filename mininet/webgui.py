@@ -101,7 +101,7 @@ def writeFile( path, text ):
             os.umask( umask )
             mode, owner = 0o666 & ~umask, labconfig.fileOwner()
         os.chmod( tmp, mode )
-        if owner and isRoot():
+        if owner and isRoot() and hasattr( os, 'chown' ):  # not on Windows
             try:
                 os.chown( tmp, owner[ 0 ], owner[ 1 ] )
             except OSError:

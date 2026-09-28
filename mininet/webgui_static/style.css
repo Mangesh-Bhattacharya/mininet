@@ -17,13 +17,17 @@
   --edge: #94a3b8;
   --link: #1d4ed8;
   --link-control: #dc2626;
-  --dev-body: #e8ecf3;
-  --dev-edge: #9aa6bb;
-  --dev-screen: #1e2836;
-  --switch: #0e7490;
-  --switch-edge: #0b5c73;
-  --ctrl: #9aa3b2;
-  --ctrl-edge: #6b7486;
+  --canvas: #fbfcfe;
+  --grid: #dfe4ec;
+  --plate: #eef1f6;
+  --plate-edge: #c3cbd9;
+  --dev-body: #dfe4ec;
+  --dev-edge: #98a3b6;
+  --dev-screen: #17202e;
+  --switch: #2f7fd1;
+  --switch-edge: #1d5ea0;
+  --ctrl: #aab3c1;
+  --ctrl-edge: #78828f;
   --code-bg: #f1f3f7;
   --radius: 10px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -49,13 +53,17 @@
     --edge: #5b6b82;
     --link: #60a5fa;
     --link-control: #f87171;
-    --dev-body: #243044;
-    --dev-edge: #44536b;
-    --dev-screen: #0b1018;
-    --switch: #14b8a6;
-    --switch-edge: #0f8a7e;
-    --ctrl: #7c8699;
-    --ctrl-edge: #5a6478;
+    --canvas: #121820;
+    --grid: #232d3b;
+    --plate: #212b3a;
+    --plate-edge: #3a465b;
+    --dev-body: #2b374a;
+    --dev-edge: #4a5871;
+    --dev-screen: #080c12;
+    --switch: #3b8fe0;
+    --switch-edge: #2a6ba9;
+    --ctrl: #7f8a9c;
+    --ctrl-edge: #5c6577;
     --code-bg: #0c1117;
   }
 }
@@ -163,6 +171,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .palette .tool .screen { fill: var(--dev-screen); }
 .palette .tool .glyph { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .palette .tool .glyph-fill { fill: var(--text); }
+.palette .tool .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+.palette .tool .gloss { fill: #fff; opacity: 0.18; }
+.palette .tool .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.palette .tool[data-tool="link"] .glyph { stroke: var(--link); }
+.palette .tool[data-tool="link"] .glyph-fill { fill: var(--link); }
 .palette .tool[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
 .palette .tool[aria-pressed="true"] .glyph { stroke: var(--accent-text); }
 .palette .tool[aria-pressed="true"] .glyph-fill { fill: var(--accent-text); }
@@ -175,16 +188,26 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .palette-run .stop { color: var(--bad); border-color: var(--bad); background: var(--bad-bg); }
 .palette-run button:disabled { opacity: .4; }
 
-#graph { flex: 1; min-width: 0; height: clamp(320px, 58vh, 620px); display: block; }
+#graph {
+  flex: 1; min-width: 0; height: clamp(320px, 58vh, 620px); display: block;
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px; background-position: -11px -11px;
+  border: 1px solid var(--border); border-radius: 12px;
+}
 #graph[data-tool="host"], #graph[data-tool="switch"] { cursor: crosshair; }
 #graph[data-tool="link"] .node, #graph[data-tool="delete"] .node { cursor: pointer; }
 #graph .node { cursor: grab; }
-#graph .icon .body { fill: var(--dev-body); stroke: var(--dev-edge); stroke-width: 1.3; }
-#graph .icon.switch .body { fill: var(--switch); stroke: var(--switch-edge); }
-#graph .icon.controller .body { fill: var(--ctrl); stroke: var(--ctrl-edge); }
+#graph .icon { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.22)); }
+#graph .icon .plate { fill: var(--plate); stroke: var(--plate-edge); stroke-width: 1; }
+#graph .node:hover .plate { stroke: var(--accent); }
+#graph .icon .case { fill: var(--dev-body); stroke: var(--dev-edge); stroke-width: 1.2; }
+#graph .icon.controller .case { fill: var(--ctrl); stroke: var(--ctrl-edge); }
 #graph .icon .screen { fill: var(--dev-screen); }
-#graph .icon .glyph { fill: none; stroke: #fff; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
-#graph .icon .slot { fill: var(--dev-screen); opacity: .85; }
+#graph .icon .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .icon .gloss { fill: #fff; opacity: 0.16; }
+#graph .icon .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#graph .icon .slot { fill: var(--dev-screen); opacity: .8; }
 #graph .icon .led { fill: var(--ok); }
 #graph .node.selected .halo { visibility: visible !important; stroke: var(--accent); stroke-width: 2.5; fill: none; }
 #graph .node.linking .halo { visibility: visible !important; stroke: var(--controller); stroke-width: 2.5; fill: none; }
@@ -195,11 +218,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 #graph .edge.selected { stroke: var(--accent); stroke-width: 4; }
 #graph .edge-label {
   fill: var(--muted); font-size: 11px;
-  paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
+  paint-order: stroke; stroke: var(--canvas); stroke-width: 4px; stroke-linejoin: round;
 }
 #graph .node-label {
   fill: var(--text); font-size: 12px; font-weight: 600;
-  paint-order: stroke; stroke: var(--panel); stroke-width: 3.5px; stroke-linejoin: round;
+  paint-order: stroke; stroke: var(--canvas); stroke-width: 3.5px; stroke-linejoin: round;
 }
 #graph .empty { fill: var(--muted); font-size: 14px; }
 /* Properties of the selected node or link */

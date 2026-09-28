@@ -24,6 +24,11 @@ from mininet import labconfig, webgui
 
 TOKEN = 'test-token-0123456789abcdef'
 
+# Starting a network imports Mininet itself, which needs a Linux kernel;
+# everything else in the GUI works on Windows and macOS too
+needsLinux = unittest.skipUnless( sys.platform.startswith( 'linux' ),
+                                  'starting a network needs Linux' )
+
 
 class FakeNode( object ):
     "Just enough of a Mininet host"
@@ -322,6 +327,7 @@ class InvalidConfigTests( GuiTestCase ):
         self.assertEqual( code, 409 )
 
 
+@needsLinux
 class NetworkTests( GuiTestCase ):
     "Start, test, run commands, stop"
 

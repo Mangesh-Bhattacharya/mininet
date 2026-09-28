@@ -488,8 +488,8 @@ function layout(graph, width, height, force) {
     });
   }
   for (const n of nodes) {
-    n.x = Math.min(Math.max(n.x, 34), width - 34);
-    n.y = Math.min(Math.max(n.y, 30), height - 30);
+    n.x = Math.min(Math.max(n.x, 36), width - 36);
+    n.y = Math.min(Math.max(n.y, 36), height - 44);
   }
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const edges = graph.links
@@ -497,34 +497,42 @@ function layout(graph, width, height, force) {
     .filter((e) => e[0] && e[1]);
   return { nodes, edges };
 }
-// Device icons, in MiniEdit's arrangement: a monitor for a host, a
-// switch, and a rack for the controller - drawn as flat SVG so they
-// stay sharp at any zoom and follow the light/dark theme
-const ICON_SIZE = { host: [46, 40], switch: [52, 28], controller: [40, 42] };
+// Device icons, drawn the way MiniEdit draws them: each device sits on
+// a light plate with its name underneath - a monitor for a host, the
+// round blue switch, a server for the controller. Flat SVG, so they
+// stay sharp at any zoom and follow the light/dark theme.
+const ICON_SIZE = { host: [54, 50], switch: [54, 50], controller: [52, 56] };
 
 function deviceIcon(kind, x, y) {
+  const [ w, h ] = ICON_SIZE[kind];
   const g = svg('g', { class: 'icon ' + kind });
+  g.append(svg('rect', {
+    class: 'plate', x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 10,
+  }));
   if (kind === 'host') {
-    g.append(svg('rect', { class: 'body', x: x - 23, y: y - 20, width: 46, height: 32, rx: 4 }));
-    g.append(svg('rect', { class: 'screen', x: x - 18, y: y - 15.5, width: 36, height: 21, rx: 2 }));
-    g.append(svg('rect', { class: 'body', x: x - 5, y: y + 11, width: 10, height: 5 }));
-    g.append(svg('rect', { class: 'body', x: x - 13, y: y + 15, width: 26, height: 4, rx: 2 }));
+    g.append(svg('rect', { class: 'case', x: x - 19, y: y - 17, width: 38, height: 28, rx: 3 }));
+    g.append(svg('rect', { class: 'screen', x: x - 16, y: y - 14, width: 32, height: 21, rx: 1.5 }));
+    g.append(svg('path', { class: 'gloss', d: `M ${x - 15} ${y - 13} h 12 l -12 12 z` }));
+    g.append(svg('rect', { class: 'case', x: x - 4.5, y: y + 11, width: 9, height: 5 }));
+    g.append(svg('rect', { class: 'case', x: x - 13, y: y + 15, width: 26, height: 4, rx: 2 }));
   } else if (kind === 'switch') {
-    g.append(svg('rect', { class: 'body', x: x - 26, y: y - 14, width: 52, height: 28, rx: 6 }));
+    g.append(svg('circle', { class: 'disc', cx: x, cy: y, r: 18 }));
+    g.append(svg('ellipse', { class: 'gloss', cx: x, cy: y - 7, rx: 12, ry: 6.5 }));
     g.append(svg('path', {
-      class: 'glyph',
-      d: `M ${x - 15} ${y - 5} H ${x + 11} M ${x + 6} ${y - 10} L ${x + 13} ${y - 5} L ${x + 6} ${y}`,
+      class: 'arrow',
+      d: `M ${x - 10} ${y - 6} H ${x + 5} M ${x} ${y - 10.5} L ${x + 6} ${y - 6} L ${x} ${y - 1.5}`,
     }));
     g.append(svg('path', {
-      class: 'glyph',
-      d: `M ${x + 15} ${y + 6} H ${x - 11} M ${x - 6} ${y + 1} L ${x - 13} ${y + 6} L ${x - 6} ${y + 11}`,
+      class: 'arrow',
+      d: `M ${x + 10} ${y + 6} H ${x - 5} M ${x} ${y + 1.5} L ${x - 6} ${y + 6} L ${x} ${y + 10.5}`,
     }));
   } else {
-    g.append(svg('rect', { class: 'body', x: x - 20, y: y - 21, width: 40, height: 42, rx: 5 }));
-    for (const dy of [-13, -1, 11]) {
-      g.append(svg('rect', { class: 'slot', x: x - 14, y: y + dy, width: 28, height: 8, rx: 2 }));
-      g.append(svg('circle', { class: 'led', cx: x + 9, cy: y + dy + 4, r: 1.8 }));
+    g.append(svg('rect', { class: 'case', x: x - 14, y: y - 22, width: 28, height: 41, rx: 3 }));
+    for (const dy of [ -17, -8, 1 ]) {
+      g.append(svg('rect', { class: 'slot', x: x - 10, y: y + dy, width: 20, height: 6, rx: 1.5 }));
     }
+    g.append(svg('circle', { class: 'led', cx: x - 6, cy: y + 14, r: 2.2 }));
+    g.append(svg('circle', { class: 'led', cx: x + 1, cy: y + 14, r: 2.2 }));
   }
   return g;
 }
@@ -594,7 +602,7 @@ function drawGraph(graph) {
       class: 'halo', x: n.x - ICON_SIZE[n.kind][0] / 2 - 6,
       y: n.y - ICON_SIZE[n.kind][1] / 2 - 6,
       width: ICON_SIZE[n.kind][0] + 12, height: ICON_SIZE[n.kind][1] + 12,
-      rx: 9, visibility: 'hidden',
+      rx: 13, visibility: 'hidden',
     }));
     group.append(svg('rect', {
       class: 'hit', x: n.x - ICON_SIZE[n.kind][0] / 2 - 4,
