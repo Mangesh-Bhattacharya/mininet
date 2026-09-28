@@ -2,13 +2,28 @@
 
 "Setuptools params"
 
-from setuptools import setup
-from os.path import join
+import re
+from os.path import dirname, join
 
-# Get version number from source tree
-import sys
-sys.path.append( '.' )
-from mininet.net import VERSION
+from setuptools import setup
+
+here = dirname( __file__ ) or '.'
+
+
+def readVersion():
+    """Read the version from the source tree. We read the file instead of
+       importing mininet.net, which only imports on Linux, so that the
+       package also builds and installs on Windows and macOS (where
+       mn-config and mn-gui work but the emulator itself does not)."""
+    source = join( here, 'mininet', 'net.py' )
+    with open( source, encoding='utf-8' ) as f:
+        found = re.search( r'^VERSION\s*=\s*"([^"]+)"', f.read(), re.M )
+    if not found:
+        raise RuntimeError( 'no VERSION in %s' % source )
+    return found.group( 1 )
+
+
+VERSION = readVersion()
 
 scripts = [ join( 'bin', filename ) for filename in
             [ 'mn', 'mn-doctor', 'mn-config', 'mn-gui' ] ]
@@ -22,6 +37,10 @@ setup(
     author='Bob Lantz',
     author_email='rlantz@cs.stanford.edu',
     packages=[ 'mininet', 'mininet.examples' ],
+    # mininet/examples is a symlink to examples/, which Windows clones
+    # check out as a plain file; point at the real directory instead so
+    # the package builds from a clone on every operating system
+    package_dir={ 'mininet.examples': 'examples' },
     package_data={ 'mininet': [ 'templates/*', 'webgui_static/*' ] },
     long_description="""
         Mininet is a network emulator which uses lightweight
