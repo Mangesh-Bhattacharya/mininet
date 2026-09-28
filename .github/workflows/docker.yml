@@ -112,6 +112,7 @@ jobs:
           scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          ignore-policy: .trivy/ignore-kernel-headers.rego
           exit-code: "1"
           skip-setup-trivy: true
 
@@ -150,6 +151,7 @@ jobs:
           scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          ignore-policy: .trivy/ignore-kernel-headers.rego
           exit-code: "1"
 
   publish:

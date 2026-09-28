@@ -19,8 +19,6 @@
     </div>
     <div class="actions">
       <span id="status-pill" class="pill">...</span>
-      <button id="btn-start" class="primary" type="button">Start network</button>
-      <button id="btn-stop" type="button">Stop</button>
       <button id="btn-pingall" type="button">Ping all</button>
     </div>
   </header>
@@ -31,14 +29,68 @@
     <section class="panel topo-panel" aria-labelledby="topo-title">
       <div class="panel-head">
         <h2 id="topo-title">Topology</h2>
-        <div class="legend" aria-hidden="true">
-          <span><i class="lg host"></i>host</span>
-          <span><i class="lg switch"></i>switch</span>
-          <span><i class="lg controller"></i>controller</span>
+        <div class="head-right">
+          <span id="edit-hint" class="small muted"></span>
+          <button id="btn-arrange" type="button" class="small-btn">Auto-arrange</button>
         </div>
       </div>
-      <svg id="graph" role="img" aria-label="Network topology"
-           preserveAspectRatio="xMidYMid meet"></svg>
+
+      <div class="editor-area">
+        <div class="palette" role="toolbar" aria-label="Topology tools">
+          <button class="tool" data-tool="select" aria-pressed="true"
+                  title="Select and move (Esc)" type="button">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path class="glyph-fill" d="M8 4l16 10-7 1.7L13 25z"/>
+            </svg>
+            <span class="sr">Select</span>
+          </button>
+          <button class="tool" data-tool="host" aria-pressed="false"
+                  title="Add a host (H)" type="button">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <rect class="body" x="3" y="6" width="26" height="18" rx="2.5"/>
+              <rect class="screen" x="6" y="9" width="20" height="12" rx="1.5"/>
+              <rect class="body" x="13" y="24" width="6" height="3"/>
+              <rect class="body" x="9" y="26" width="14" height="2.5" rx="1.2"/>
+            </svg>
+            <span class="sr">Host</span>
+          </button>
+          <button class="tool" data-tool="switch" aria-pressed="false"
+                  title="Add a switch (S)" type="button">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle class="disc" cx="16" cy="16" r="13"/>
+              <ellipse class="gloss" cx="16" cy="11" rx="9" ry="5"/>
+              <path class="arrow" d="M9 12h9m-4-4l5 4-5 4"/>
+              <path class="arrow" d="M23 21h-9m4 4l-5-4 5-4"/>
+            </svg>
+            <span class="sr">Switch</span>
+          </button>
+          <button class="tool" data-tool="link" aria-pressed="false"
+                  title="Add a link: click two nodes (L)" type="button">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path class="glyph" d="M7 25L25 7"/>
+              <circle class="glyph-fill" cx="7" cy="25" r="3.5"/>
+              <circle class="glyph-fill" cx="25" cy="7" r="3.5"/>
+            </svg>
+            <span class="sr">Link</span>
+          </button>
+          <button class="tool" data-tool="delete" aria-pressed="false"
+                  title="Delete a node or link (Del)" type="button">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path class="glyph" d="M8 10h16l-1.5 17h-13zM12 10V6h8v4"/>
+            </svg>
+            <span class="sr">Delete</span>
+          </button>
+
+          <div class="palette-run">
+            <button id="btn-start" class="run" type="button">Run</button>
+            <button id="btn-stop" class="stop" type="button">Stop</button>
+          </div>
+        </div>
+        <svg id="graph" role="img" aria-label="Network topology"
+             preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+
+      <div id="props" class="props" hidden></div>
       <p id="summary" class="summary muted"></p>
     </section>
 

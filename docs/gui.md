@@ -5,8 +5,14 @@ runs wherever Mininet runs (Linux, WSL 2, a VM or the Docker container)
 and you use it from any browser, including one on the Windows or macOS
 machine hosting that container or VM.
 
-- **Topology**: a live drawing of hosts, switches, links (with bandwidth
-  and delay) and the controller.
+- **Topology editor**: MiniEdit's layout, in the browser - a tool
+  palette (select, host, switch, link, delete) with Run/Stop, MiniEdit's
+  device icons (a monitor for a host, the round blue switch, a server
+  for the controller) on a dotted canvas, solid blue data links and red
+  dash-dot control links. Drag nodes to place them, click two nodes to
+  link them, and edit addresses, DPIDs or link speeds in the properties
+  panel. Everything you change is written straight back to the lab
+  file.
 - **Configuration**: edit YAML/JSON configs with instant checking; errors
   come with hints and Save stays disabled until the file is valid.
 - **Start / Stop / Ping all**: run the network and see which hosts reach

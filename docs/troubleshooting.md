@@ -126,6 +126,36 @@ XQuartz and use `ssh -Y`, or skip GUI tools with plain `mn`.
 Still stuck? Open an issue with the output of `sudo mn-doctor --json` and
 `sudo mn -v debug --test pingall`.
 
+## Building the OpenFlow reference switch (`install.sh -f`)
+
+**`lib/backtrace.c: error: passing argument 1 of 'backtrace' from
+incompatible pointer type`**, or other compile errors in
+`~/openflow` on Ubuntu 26.04 / Fedora 42+ / any system with gcc 14 or
+newer. The OpenFlow 1.0 reference implementation dates from 2015: gcc 14
+turned several type mismatches into errors and gcc 15 defaults to C23.
+`util/install.sh` handles this since September 2026 — update your
+checkout and run it again:
+
+```bash
+git pull
+util/install.sh -f
+```
+
+To fix a tree you already have:
+
+```bash
+cd ~/openflow      # or wherever install.sh cloned it
+sed -i 's/backtrace(bt->frames,/backtrace((void **) bt->frames,/' lib/backtrace.c
+make CFLAGS="-g -O2 -fcommon -std=gnu17 -Wno-error=incompatible-pointer-types \
+  -Wno-error=implicit-function-declaration -Wno-error=int-conversion \
+  -Wno-error=return-mismatch"
+sudo make install
+```
+
+You only need this switch for `mn --switch user` and `--controller ref`.
+Mininet uses Open vSwitch by default, so `util/install.sh -nv` is enough
+for everything else.
+
 ## Lab configurations and the GUI
 
 **`mn-config validate` reports problems.** Each one names the setting

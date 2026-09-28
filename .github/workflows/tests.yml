@@ -41,6 +41,55 @@ jobs:
       - name: Unit tests (mn-doctor, mn-config, mn-gui)
         run: python -m unittest -v mininet.test.test_doctor mininet.test.test_labconfig mininet.test.test_webgui
 
+  wheel:
+    # "pip install ." has to work from a clone on every operating system.
+    # Windows clones have no symlinks, so mininet/examples arrives as a
+    # plain text file there and setup.py must not rely on it.
+    name: Build and install the package on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Build the sdist and the wheel
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Install the wheel and use the tools it installs
+        shell: bash
+        run: |
+          set -e
+          python -m venv env
+          bin=env/bin
+          [ -d "$bin" ] || bin=env/Scripts
+          "$bin/python" -m pip install --quiet "$( ls dist/*.whl )[yaml]"
+          # by name, as a user runs them: pip must have made the
+          # wrappers (mn-config.exe and friends on Windows)
+          export PATH="$PWD/$bin:$PATH"
+          mn-config init --lang yaml -o lab.yaml
+          mn-config validate lab.yaml
+          mn-config show lab.yaml
+          mn-config schema > /dev/null
+          mn-config init --lang python -o lab.py
+          mn-config validate lab.py
+          "$bin/python" - <<'PY'
+          import os
+          import mininet, mininet.examples, mininet.labconfig, mininet.webgui
+          root = os.path.dirname( mininet.__file__ )
+          for name in ( 'templates/lab.yaml', 'templates/lab.cob',
+                        'webgui_static/app.js', 'webgui_static/index.html',
+                        'webgui_static/style.css' ):
+              assert os.path.exists( os.path.join( root, name ) ), name
+          print( 'installed package is complete' )
+          PY
+
   native:
     name: Mininet on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -154,6 +203,53 @@ jobs:
         with:
           name: gui-screenshots
           path: ${{ runner.temp }}/screenshots
+
+  gui-desktop:
+    # Windows and macOS can't run Mininet itself (it needs a Linux
+    # kernel), but designing, checking and editing labs must work there
+    # natively after a clone.
+    name: CLI and GUI on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML and Playwright
+        run: |
+          python -m pip install -r requirements.txt -r requirements-e2e.txt
+          python -m playwright install chromium
+      - name: Lab configurations work without a Linux kernel
+        shell: bash
+        run: |
+          export PYTHONPATH="$PWD"
+          python bin/mn-config init --lang yaml -o lab.yaml
+          python bin/mn-config validate lab.yaml
+          python bin/mn-config show lab.yaml > /dev/null
+          python bin/mn-config schema > /dev/null
+          python bin/mn-config languages
+          python -m unittest mininet.test.test_labconfig -v
+      - name: The GUI edits topologies here too
+        shell: bash
+        env:
+          MININET_GUI_TOKEN: ci-token-desktop-0123456789
+        run: |
+          export PYTHONPATH="$PWD"
+          python bin/mn-gui --config desktop-lab.yaml --port 8765 &
+          for _ in $(seq 60); do curl -fsS -o /dev/null http://localhost:8765/ && break; sleep 1; done
+          python scripts/ci/gui-browser-test.py http://localhost:8765 \
+            "$MININET_GUI_TOKEN" screenshots --no-network
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: gui-desktop-${{ matrix.os }}
+          path: screenshots
 
   debian-package:
     name: Debian package (build, install, run)

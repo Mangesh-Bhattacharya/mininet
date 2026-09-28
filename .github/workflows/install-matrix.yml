@@ -27,7 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ["ubuntu:22.04", "ubuntu:24.04", "debian:12", "debian:13"]
+        image: ["ubuntu:22.04", "ubuntu:24.04", "ubuntu:26.04",
+                "debian:12", "debian:13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,4 +52,100 @@ jobs:
               mn --switch lxbr --controller none --test pingall
               MININET_OVS_DATAPATH=user mn --test pingall
               mn --topo linear,3 --link tc,bw=5,delay=2ms --test iperf
+            '
+
+  derivative:
+    # Zorin OS, Linux Mint, Pop!_OS and friends report their own version
+    # (Zorin 17), not the Ubuntu release their packages come from. These
+    # containers are the real Ubuntu base with the derivative's
+    # /etc/os-release, which is what install.sh has to cope with.
+    name: install.sh on ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Zorin OS 17 (Ubuntu 22.04)
+            image: "ubuntu:22.04"
+            id: zorin
+            pretty: "Zorin OS 17"
+            version: "17"
+            codename: jammy
+          - name: Linux Mint 22 (Ubuntu 24.04)
+            image: "ubuntu:24.04"
+            id: linuxmint
+            pretty: "Linux Mint 22"
+            version: "22"
+            codename: noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load kernel modules on the host
+        run: sudo modprobe -a openvswitch sch_htb sch_netem
+      - name: Install and test Mininet on ${{ matrix.name }}
+        run: |
+          docker run --rm --privileged \
+            -v /lib/modules:/lib/modules:ro \
+            -v "$PWD:/src:ro" \
+            -e DERIV_ID='${{ matrix.id }}' \
+            -e DERIV_PRETTY='${{ matrix.pretty }}' \
+            -e DERIV_VERSION='${{ matrix.version }}' \
+            -e DERIV_CODENAME='${{ matrix.codename }}' \
+            "${{ matrix.image }}" bash -c '
+              set -ex
+              cat > /etc/os-release <<EOF
+          NAME="$DERIV_PRETTY"
+          VERSION="$DERIV_VERSION"
+          ID=$DERIV_ID
+          ID_LIKE="ubuntu debian"
+          PRETTY_NAME="$DERIV_PRETTY"
+          VERSION_ID="$DERIV_VERSION"
+          VERSION_CODENAME=$DERIV_CODENAME
+          UBUNTU_CODENAME=$DERIV_CODENAME
+          EOF
+              cp -a /src /root/mininet
+              cd /root/mininet
+              util/install.sh -nv
+              ovs-vsctl -t 2 show || /usr/share/openvswitch/scripts/ovs-ctl start
+              mn-doctor
+              mn --test pingall
+              mn-config init -o /tmp/lab.yaml
+              mn-config run /tmp/lab.yaml --no-cli
+            '
+
+  reference-switch:
+    # util/install.sh -f builds the OpenFlow 1.0 reference implementation,
+    # whose C code predates current compilers: gcc 14 turned several type
+    # mismatches into errors and gcc 15 (Ubuntu 26.04) defaults to C23.
+    name: Reference switch on ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "ubuntu:26.04"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load kernel modules on the host
+        run: sudo modprobe -a openvswitch sch_htb sch_netem
+      - name: Build and run the reference switch in ${{ matrix.image }}
+        run: |
+          docker run --rm --privileged \
+            -v /lib/modules:/lib/modules:ro \
+            -v "$PWD:/src:ro" \
+            "${{ matrix.image }}" bash -c '
+              set -ex
+              cp -a /src /root/mininet
+              cd /root/mininet
+              util/install.sh -nvf
+              gcc --version | head -1
+              ofdatapath --version
+              ofprotocol --version
+              controller --help > /dev/null
+              ovs-vsctl -t 2 show || /usr/share/openvswitch/scripts/ovs-ctl start
+              # --switch user is the reference switch just built
+              mn --switch user --test pingall
+              mn --switch user --controller ref --test pingall
             '

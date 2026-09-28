@@ -63,6 +63,27 @@ The first boot installs Mininet (about 10 minutes). Progress is logged to
   using Apple Virtualization, then follow the [Linux instructions](linux.md)
   inside it.
 
+---
+
+## D. Design labs on macOS itself
+
+The emulator needs Linux, but writing, checking and drawing a lab does
+not:
+
+```bash
+git clone https://github.com/Mangesh-Bhattacharya/mininet.git
+cd mininet
+python3 -m pip install ".[yaml]"
+
+mn-config init --lang yaml -o lab.yaml   # or python, c, cpp, csharp, java, ruby, cobol, json
+mn-config validate lab.yaml
+mn-gui --config lab.yaml                 # the topology editor, in your browser
+```
+
+**Run** needs Linux: keep `lab.yaml` in a folder your container or VM
+shares (options A-C) and start it there, e.g.
+`scripts/mininet-docker.sh --gui`.
+
 ## GUI apps from a VM
 
 Install [XQuartz](https://www.xquartz.org/), log out and back in, then

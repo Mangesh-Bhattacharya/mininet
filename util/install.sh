@@ -97,6 +97,32 @@ if [ -r /etc/os-release ]; then
     esac
     RELEASE=$(. /etc/os-release; echo "${VERSION_ID:-Unknown}")
     CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME:-Unknown}")
+    # Derivatives (Zorin OS, Linux Mint, Pop!_OS, elementary, Kali...)
+    # carry their own version number, which says nothing about the
+    # packages they ship. Use the Ubuntu/Debian release they are built
+    # on: UBUNTU_CODENAME, or the codename mapped to a release.
+    if [ "$OS_ID" != ubuntu ] && [ "$OS_ID" != debian ]; then
+        BASE_CODENAME=$(. /etc/os-release; echo "${UBUNTU_CODENAME:-}")
+        [ -n "$BASE_CODENAME" ] && CODENAME=$BASE_CODENAME
+        case "$CODENAME" in
+            # Ubuntu
+            focal) BASE_RELEASE=20.04;;
+            jammy) BASE_RELEASE=22.04;;
+            noble) BASE_RELEASE=24.04;;
+            resolute) BASE_RELEASE=26.04;;
+            # Debian
+            bullseye) BASE_RELEASE=11;;
+            bookworm) BASE_RELEASE=12;;
+            trixie) BASE_RELEASE=13;;
+            forky) BASE_RELEASE=14;;
+            *) BASE_RELEASE='';;
+        esac
+        if [ -n "$BASE_RELEASE" ] && [ "$BASE_RELEASE" != "$RELEASE" ]; then
+            echo "Detected $OS_ID $RELEASE, built on $DIST $BASE_RELEASE" \
+                 "($CODENAME)"
+            RELEASE=$BASE_RELEASE
+        fi
+    fi
 elif which lsb_release &> /dev/null; then
     DIST=`lsb_release -is`
     RELEASE=`lsb_release -rs`
@@ -285,6 +311,22 @@ function mn_doc {
 }
 
 # The following will cause a full OF install, covering:
+# CFLAGS for the OpenFlow reference code, which predates current
+# compilers: gcc 15 defaults to C23, and gcc 14 turned several type
+# mismatches into errors. Only added when the compiler understands them.
+function old_c_cflags {
+    local flags="-g -O2 -fcommon"
+    local major=$( gcc -dumpversion 2> /dev/null | cut -d. -f1 )
+    if [ "${major:-0}" -ge 14 ] 2> /dev/null; then
+        flags="$flags -std=gnu17"
+        flags="$flags -Wno-error=incompatible-pointer-types"
+        flags="$flags -Wno-error=implicit-function-declaration"
+        flags="$flags -Wno-error=int-conversion"
+        flags="$flags -Wno-error=return-mismatch"
+    fi
+    echo "$flags"
+}
+
 # -user switch
 # The instructions below are an abbreviated version from
 # http://www.openflowswitch.org/wk/index.php/Debian_Install
@@ -312,9 +354,16 @@ function of {
     grep -rlw strlcpy --include='*.[ch]' . | \
         xargs -r sed -i 's/\bstrlcpy\b/of_strlcpy/g'
 
+    # gcc 14+ rejects passing uintptr_t* where void** is expected
+    # (-Werror=incompatible-pointer-types), which breaks lib/backtrace.c
+    sed -i 's/backtrace(bt->frames,/backtrace((void **) bt->frames,/' \
+        lib/backtrace.c
+
     # Resume the install:
     ./boot.sh
-    ./configure CFLAGS="-g -O2 -fcommon"
+    # This code predates C23 (gcc 15's default) and the stricter type
+    # checks gcc 14+ turned into errors
+    ./configure CFLAGS="$(old_c_cflags)"
     make
     sudo make install
     cd $BUILD_DIR
@@ -356,7 +405,7 @@ function of13 {
     # Resume the install:
     cd $BUILD_DIR/ofsoftswitch13
     ./boot.sh
-    ./configure
+    ./configure CFLAGS="$(old_c_cflags)"
     make
     sudo make install
     cd $BUILD_DIR

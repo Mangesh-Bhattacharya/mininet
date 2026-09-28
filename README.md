@@ -82,7 +82,7 @@ docker run --rm -it --privileged -p 127.0.0.1:8080:8080 -v "$PWD:/workspace" \
 
 ### Ubuntu or Debian — native install
 
-Ubuntu 22.04/24.04 and Debian 12/13:
+Ubuntu 22.04, 24.04 and 26.04, Debian 12/13:
 
 ```bash
 git clone https://github.com/Mangesh-Bhattacharya/mininet.git
@@ -108,6 +108,20 @@ Details: [docs/install/windows.md](docs/install/windows.md).
 
 Use the `docker run` above, or a Linux VM with Multipass/UTM/Vagrant —
 [docs/install/macos.md](docs/install/macos.md).
+
+### Design labs without Linux
+
+Running a network needs a Linux kernel, but writing, checking and
+drawing one does not. On Windows or macOS itself:
+
+```bash
+python3 -m pip install ".[yaml]"   # Windows: py -m pip install ".[yaml]"
+mn-config init --lang yaml -o lab.yaml
+mn-config validate lab.yaml
+mn-gui --config lab.yaml           # the topology editor, in your browser
+```
+
+Then run `lab.yaml` in Docker, WSL 2 or a VM.
 
 ### Any virtual machine
 
@@ -155,7 +169,9 @@ sudo mn-gui --config lab.yaml          # then open the URL it prints
 | <img src="docs/images/gui-validation.png" alt="Editing the configuration: two mistakes are reported with hints and Save is disabled"> | <img src="docs/images/gui-console.png" alt="The console tab: a ping from h1 to h3 and an iperf bandwidth measurement"> |
 | **Edit with instant checking** — mistakes are listed with hints, and Save stays disabled until the file is valid. | **Run commands on any host** and measure bandwidth with iperf. |
 
-- Live topology drawing (hosts, switches, controller, link speeds and delays)
+- A MiniEdit-style topology editor: palette, device icons, drag to
+  place, click two nodes to link, properties for addresses and link
+  speeds - saved straight into your lab file
 - Start / stop the network, ping matrix, node console, iperf
 - A **Guide** tab listing every setting as *edit freely*, *advanced* or *do not edit*
 - Light and dark mode; works from the browser on your Windows or Mac
@@ -245,11 +261,12 @@ Everything below is tested automatically on every change and every week:
 | Platform | Tested |
 |----------|--------|
 | Ubuntu 22.04, 24.04 (native) | install, `pingall` with OVS kernel and userspace datapaths, Linux bridge, shaped links, Mininet's full core and example test suites |
-| Ubuntu 22.04/24.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
+| Ubuntu 22.04/24.04/26.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
 | Docker image, amd64 and arm64 | networks, lab configs, the GUI, vulnerability scan |
 | Browser GUI | driven in Chromium against a real network, light and dark mode; fails on any browser console error |
 | Lab configs | all nine languages build and run a real network |
 | Debian package | built, installed and used to run a network |
+| OpenFlow reference switch | built and run on gcc 13 (Ubuntu 24.04) and gcc 15 (Ubuntu 26.04) |
 | macOS, Windows | Docker launchers (bash 3.2, PowerShell 5.1/7, `cmd`, Git Bash), `mn-doctor` guidance |
 | Python 3.9 – 3.14 | unit tests for `mn-doctor`, `mn-config` and `mn-gui` (including its security checks) |
 

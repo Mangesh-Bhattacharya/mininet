@@ -101,7 +101,7 @@ def writeFile( path, text ):
             os.umask( umask )
             mode, owner = 0o666 & ~umask, labconfig.fileOwner()
         os.chmod( tmp, mode )
-        if owner and isRoot():
+        if owner and isRoot() and hasattr( os, 'chown' ):  # not on Windows
             try:
                 os.chown( tmp, owner[ 0 ], owner[ 1 ] )
             except OSError:
@@ -281,7 +281,10 @@ class LabSession( object ):
         if self.net:
             hosts = [ h.name for h in self.net.hosts ]
         else:
-            hosts = labconfig.buildTopo( cfg ).hosts() if cfg else []
+            # expand(), not Mininet's Topo: this also runs on Windows
+            # and macOS, where the GUI can edit labs but not start them
+            hosts = ( [ h[ 'name' ] for h in labconfig.expand( cfg )[ 0 ] ]
+                      if cfg else [] )
         return {
             'running': self.running(), 'root': isRoot(),
             'path': self.path, 'language': self.lang.title,
@@ -431,7 +434,27 @@ def _validate( session, body ):
     cfg, issues = session.check( body.get( 'text', '' ) )
     return { 'ok': not issues, 'issues': [ i.asDict() for i in issues ],
              'graph': labconfig.graph( cfg ) if cfg else None,
+             'config': cfg,
              'summary': labconfig.summary( cfg ) if cfg else '' }
+
+
+def _format( session, body ):
+    """POST /api/format: turn the topology editor's configuration into
+       file text, checked first"""
+    config = body.get( 'config' )
+    if not isinstance( config, dict ):
+        raise GuiError( 'send a configuration object' )
+    try:
+        cfg = labconfig.validate( config )
+    except ConfigError as e:
+        return { 'ok': False,
+                 'issues': [ i.asDict() for i in e.issues ] }
+    fmt = session.lang.key if session.lang.isData() else 'yaml'
+    return { 'ok': True,
+             'text': labconfig.dump( cfg, fmt,
+                                     os.path.basename( session.path ) ),
+             'graph': labconfig.graph( cfg ), 'config': cfg,
+             'summary': labconfig.summary( cfg ) }
 
 
 def _save( session, body ):
@@ -464,6 +487,7 @@ ROUTES = {
         { 'path': p, 'level': l, 'text': t }
         for p, l, t in labconfig.FIELDS ] },
     ( 'POST', 'validate' ): _validate,
+    ( 'POST', 'format' ): _format,
     ( 'POST', 'save' ): _save,
     ( 'POST', 'reload' ): _reload,
     ( 'POST', 'start' ): lambda s, b: { 'startup': s.start() },
