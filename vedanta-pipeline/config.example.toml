@@ -1,0 +1,28 @@
+[identity]
+org_name = "Vedanta Society of Toronto"
+channel_url = "https://www.youtube.com/@VedantaToronto"
+website = "https://vedantatoronto.ca"
+timezone = "America/Toronto"
+
+[paths]
+inbox_dir = "inbox"        # drop the monthly newsletter here (.pdf .eml .html .txt)
+out_dir = "out"
+state_dir = "state"
+
+[monetisation]
+donation_url = ""          # fill in: official donation page (https, allowlisted automatically)
+merch_url = ""             # fill in: temple store
+charity_receipt_text = ""  # only set if the Society is authorised to say this; otherwise leave empty
+
+[behaviour]
+publish_mode = "draft"     # draft = build + gate only; schedule = also create YouTube broadcasts
+default_visibility = "private"
+go_public_hours_before = 24
+poll_seconds = 900
+use_llm = false            # true + ANTHROPIC_API_KEY enables LLM gap-filling in extraction
+
+[security]
+allowed_contacts = []      # emails/phones that may appear publicly, e.g. ["office@vedantatoronto.ca"]
+allowed_domains = ["vedantatoronto.ca", "youtube.com", "youtu.be", "studio.youtube.com"]
+social_webhook_url = ""    # optional https Zapier/Make hook that owns social credentials
+daily_publish_cap = 6

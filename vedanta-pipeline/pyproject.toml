@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vedanta-pipeline"
+version = "0.1.0"
+description = "Multi-agent newsletter-to-YouTube pipeline for the Vedanta Society of Toronto"
+requires-python = ">=3.11"
+dependencies = ["pillow>=10"]
+
+[project.optional-dependencies]
+google = ["google-api-python-client>=2.100", "google-auth-oauthlib>=1.2"]
+llm = ["anthropic>=0.40"]
+pdf = ["pypdf>=4"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+vedanta = "vedanta_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

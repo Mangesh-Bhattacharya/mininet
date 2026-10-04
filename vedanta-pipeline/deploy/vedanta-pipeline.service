@@ -1,0 +1,22 @@
+[Unit]
+Description=Vedanta Society of Toronto YouTube pipeline
+After=network-online.target
+
+[Service]
+User=vedanta
+WorkingDirectory=/srv/vedanta
+ExecStart=/srv/vedanta/venv/bin/vedanta --config /srv/vedanta/config.toml run
+Restart=always
+RestartSec=30
+# hardening (least privilege)
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/vedanta/state /srv/vedanta/out /srv/vedanta/inbox /srv/vedanta/secrets
+PrivateTmp=yes
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+EnvironmentFile=-/srv/vedanta/secrets/env
+
+[Install]
+WantedBy=multi-user.target
