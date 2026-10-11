@@ -15,11 +15,20 @@ const HOST_FIELDS = [
   { key: 'ip', label: 'IP address', placeholder: '10.0.0.1/24' },
   { key: 'mac', label: 'MAC (advanced)', placeholder: '00:00:00:00:00:01' },
   { key: 'gateway', label: 'Gateway (advanced)', placeholder: '10.0.0.254' },
+  { key: 'router', label: 'Router (forwards IPv4)', boolean: true },
 ];
 const SWITCH_FIELDS = [
   { key: 'name', label: 'Name', placeholder: 's1' },
   { key: 'dpid', label: 'DPID (advanced)', placeholder: '0000000000000001' },
   { key: 'protocols', label: 'OpenFlow (advanced)', placeholder: 'OpenFlow13' },
+  { key: 'legacy', label: 'Legacy (no controller)', boolean: true },
+];
+const NETWORK_FIELDS = [
+  { key: 'controller', label: 'Controller', placeholder: 'default | remote | none' },
+  { key: 'controller_ip', label: 'Controller address', placeholder: '127.0.0.1' },
+  { key: 'controller_port', label: 'Controller port', placeholder: '6653', number: true },
+  { key: 'switch', label: 'Switch type', placeholder: 'ovs | ovsbr | lxbr | user' },
+  { key: 'datapath', label: 'Datapath (advanced)', placeholder: 'auto | kernel | user' },
 ];
 const LINK_FIELDS = [
   { key: 'bw', label: 'Bandwidth (Mbit/s)', placeholder: '10', number: true },
@@ -40,9 +49,12 @@ const state = {
   validateTimer: null,
   busy: false,
   tool: 'select',
-  selection: null,     // { kind: 'node'|'link', id } / { from, to }
+  selection: null,     // { kind: 'node'|'link'|'network', id } / { from, to }
   linkStart: null,
+  history: [],         // configurations for Undo, oldest first
 };
+
+const UNDO_LIMIT = 50;
 
 const $ = (id) => document.getElementById(id);
 
@@ -202,8 +214,11 @@ function updateEditHint() {
   } else if (state.tool === 'link') {
     hint.textContent = state.linkStart ? 'Click the second node (Esc to cancel).'
       : 'Click two nodes to link them.';
-  } else if (state.tool === 'host' || state.tool === 'switch') {
-    hint.textContent = 'Click the canvas to place a ' + state.tool + '.';
+  } else if (NODE_TOOLS[state.tool]) {
+    hint.textContent = 'Click the canvas to place a ' +
+      NODE_TOOLS[state.tool].title + '.';
+  } else if (state.tool === 'controller') {
+    hint.textContent = 'Click the controller, or the canvas, for its settings.';
   } else if (state.tool === 'delete') {
     hint.textContent = 'Click a node or link to delete it.';
   } else {
@@ -234,7 +249,8 @@ function uniqueName(prefix) {
 
 // Apply a change to the configuration: the server turns it back into
 // file text, so the editor and the canvas always agree
-async function applyConfig(config, message) {
+async function applyConfig(config, message, undoing) {
+  const previous = state.config;
   const result = await api('POST', 'format', { config });
   showIssues(result.issues || []);
   if (!result.ok) {
@@ -242,6 +258,10 @@ async function applyConfig(config, message) {
     notify('That change is not valid; see the problems listed.', true);
     updateButtons();
     return false;
+  }
+  if (!undoing && previous) {
+    state.history.push(previous);
+    if (state.history.length > UNDO_LIMIT) state.history.shift();
   }
   state.config = result.config;
   state.valid = true;
@@ -269,12 +289,35 @@ function nodeList(config, kind) {
   return kind === 'host' ? config.hosts : config.switches;
 }
 
-async function addNode(kind, x, y) {
+// The palette's node tools, in MiniEdit's terms
+const NODE_TOOLS = {
+  host: { kind: 'host', prefix: 'h', title: 'host' },
+  router: { kind: 'host', prefix: 'r', title: 'legacy router',
+            extra: { router: true } },
+  switch: { kind: 'switch', prefix: 's', title: 'switch' },
+  lswitch: { kind: 'switch', prefix: 's', title: 'legacy switch',
+             extra: { legacy: true } },
+};
+
+async function addNode(tool, x, y) {
+  const spec = NODE_TOOLS[tool];
   const config = configCopy();
-  const name = uniqueName(kind === 'host' ? 'h' : 's');
-  nodeList(config, kind).push({ name, x: Math.round(x), y: Math.round(y) });
+  const name = uniqueName(spec.prefix);
+  nodeList(config, spec.kind).push(Object.assign(
+    { name }, spec.extra, { x: Math.round(x), y: Math.round(y) }));
   await applyConfig(config);
   select({ kind: 'node', id: name });
+}
+
+// MiniEdit's controller tool: the lab has one controller, described by
+// the network settings, so the tool opens them
+async function useControllerTool() {
+  if (state.config && state.config.network.controller === 'none') {
+    const config = configCopy();
+    config.network.controller = 'default';
+    await applyConfig(config, 'Added the built-in controller.');
+  }
+  select({ kind: 'network' });
 }
 
 async function addLink(from, to) {
@@ -337,6 +380,28 @@ async function autoArrange() {
   await applyConfig(config);
 }
 
+async function undoChange() {
+  const previous = state.history.pop();
+  if (!previous) { notify('Nothing to undo.'); return; }
+  state.selection = null;
+  await applyConfig(previous, 'Undone.', true);
+}
+
+async function newLab() {
+  if (!confirm('Replace this lab with an empty two-host network? ' +
+               'Nothing is written until you save.')) return;
+  const config = configCopy();
+  config.topology = null;
+  config.hosts = [{ name: 'h1', ip: '10.0.0.1/24' },
+                  { name: 'h2', ip: '10.0.0.2/24' }];
+  config.switches = [{ name: 's1' }];
+  config.links = [{ from: 'h1', to: 's1' }, { from: 'h2', to: 's1' }];
+  config.run = [];
+  state.selection = null;
+  await applyConfig(config, 'New lab - press Save to write it to disk.');
+  await autoArrange();
+}
+
 async function convertToNodes() {
   const config = configCopy();
   const graph = state.graph;
@@ -381,34 +446,57 @@ function propertyForm(title, fields, values, onApply, onDelete) {
   const grid = el('div', { class: 'prop-grid' });
   for (const field of fields) {
     const id = 'prop-' + field.key;
-    const input = el('input', {
-      id, type: 'text', autocomplete: 'off',
-      placeholder: field.placeholder || '',
-    });
-    input.value = values[field.key] === undefined ? '' : String(values[field.key]);
+    const input = el('input', field.boolean
+      ? { id, type: 'checkbox', class: 'prop-check' }
+      : { id, type: 'text', autocomplete: 'off',
+          placeholder: field.placeholder || '' });
+    if (field.boolean) input.checked = !!values[field.key];
+    else input.value = values[field.key] === undefined ? '' : String(values[field.key]);
     input.disabled = !canEdit();
     grid.append(el('label', { for: id }, field.label), input);
   }
   form.append(grid);
   const buttons = el('div', { class: 'row' });
   const apply = el('button', { class: 'primary', type: 'submit' }, 'Apply');
-  const remove = el('button', { type: 'button' }, 'Delete');
   apply.disabled = !canEdit();
-  remove.disabled = !canEdit();
-  buttons.append(apply, remove);
+  buttons.append(apply);
+  if (onDelete) {
+    const remove = el('button', { type: 'button' }, 'Delete');
+    remove.disabled = !canEdit();
+    remove.addEventListener('click', () => action(remove, onDelete));
+    buttons.append(remove);
+  }
   form.append(buttons);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const values2 = {};
     for (const field of fields) {
-      const raw = $('prop-' + field.key).value.trim();
+      const input = $('prop-' + field.key);
+      if (field.boolean) {
+        if (input.checked) values2[field.key] = true;
+        continue;
+      }
+      const raw = input.value.trim();
       if (raw === '') continue;
       values2[field.key] = field.number ? Number(raw) : raw;
     }
     action(apply, () => onApply(values2));
   });
-  remove.addEventListener('click', () => action(remove, onDelete));
   return form;
+}
+
+// The controller and the other network-wide settings (MiniEdit's
+// controller icon and preferences dialog)
+function networkForm() {
+  return propertyForm('Network and controller', NETWORK_FIELDS,
+    state.config.network,
+    async (values) => {
+      const config = configCopy();
+      Object.assign(config.network, values);
+      if (await applyConfig(config, 'Network settings applied.')) {
+        select({ kind: 'network' });
+      }
+    });
 }
 
 function showProperties() {
@@ -416,12 +504,16 @@ function showProperties() {
   const selection = state.selection;
   if (!selection || !state.config) { box.hidden = true; box.replaceChildren(); return; }
   box.hidden = false;
-  if (selection.kind === 'node') {
+  if (selection.kind === 'network') {
+    box.replaceChildren(networkForm());
+  } else if (selection.kind === 'node') {
     const found = findNode(selection.id);
     if (!found) { box.hidden = true; return; }
     const fields = found.kind === 'host' ? HOST_FIELDS : SWITCH_FIELDS;
+    const title = (found.node.router ? 'Router ' : found.node.legacy ?
+      'Legacy switch ' : found.kind === 'host' ? 'Host ' : 'Switch ');
     box.replaceChildren(propertyForm(
-      (found.kind === 'host' ? 'Host ' : 'Switch ') + selection.id, fields, found.node,
+      title + selection.id, fields, found.node,
       async (values) => {
         const config = configCopy();
         const list = nodeList(config, found.kind);
@@ -501,7 +593,14 @@ function layout(graph, width, height, force) {
 // a light plate with its name underneath - a monitor for a host, the
 // round blue switch, a server for the controller. Flat SVG, so they
 // stay sharp at any zoom and follow the light/dark theme.
-const ICON_SIZE = { host: [54, 50], switch: [54, 50], controller: [52, 56] };
+const ICON_SIZE = {
+  host: [54, 50], switch: [54, 50], controller: [52, 56],
+  router: [54, 50], legacyswitch: [58, 46],
+};
+const DEVICE_NAMES = {
+  host: 'host', switch: 'switch', controller: 'controller',
+  router: 'router', legacyswitch: 'legacy switch',
+};
 
 function deviceIcon(kind, x, y) {
   const [ w, h ] = ICON_SIZE[kind];
@@ -526,6 +625,22 @@ function deviceIcon(kind, x, y) {
       class: 'arrow',
       d: `M ${x + 10} ${y + 6} H ${x - 5} M ${x} ${y + 1.5} L ${x - 6} ${y + 6} L ${x} ${y + 10.5}`,
     }));
+  } else if (kind === 'legacyswitch') {
+    // a flat slab in perspective, like MiniEdit's legacy switch
+    g.append(svg('path', { class: 'disc',
+      d: `M ${x - 20} ${y + 4} H ${x + 12} L ${x + 20} ${y + 13} H ${x - 12} Z` }));
+    g.append(svg('path', { class: 'disc-top',
+      d: `M ${x - 20} ${y + 4} L ${x - 12} ${y - 5} H ${x + 20} L ${x + 12} ${y + 4} Z` }));
+    g.append(svg('path', { class: 'arrow',
+      d: `M ${x - 9} ${y + 8} H ${x + 5} M ${x + 1} ${y + 5} L ${x + 6} ${y + 8} L ${x + 1} ${y + 11}` }));
+  } else if (kind === 'router') {
+    // the classic round router with its crossing arrows
+    g.append(svg('ellipse', { class: 'disc', cx: x, cy: y, rx: 19, ry: 13 }));
+    g.append(svg('ellipse', { class: 'gloss', cx: x, cy: y - 5, rx: 12, ry: 4.5 }));
+    g.append(svg('path', { class: 'arrow',
+      d: `M ${x - 10} ${y - 3} H ${x + 4} M ${x} ${y - 7} L ${x + 5} ${y - 3} L ${x} ${y + 1}` }));
+    g.append(svg('path', { class: 'arrow',
+      d: `M ${x + 10} ${y + 4} H ${x - 4} M ${x} ${y} L ${x - 5} ${y + 4} L ${x} ${y + 8}` }));
   } else {
     g.append(svg('rect', { class: 'case', x: x - 14, y: y - 22, width: 28, height: 41, rx: 3 }));
     for (const dy of [ -17, -8, 1 ]) {
@@ -592,38 +707,43 @@ function drawGraph(graph) {
     }
   }
   for (const n of nodes) {
+    const role = n.role || n.kind;
+    const [ iw, ih ] = ICON_SIZE[role] || ICON_SIZE[n.kind];
     const group = svg('g', {
-      'data-node': n.id, 'data-kind': n.kind,
+      'data-node': n.id, 'data-kind': n.kind, 'data-role': role,
       class: 'node' + (isSelectedNode(n.id) ? ' selected' : '') +
         (state.linkStart === n.id ? ' linking' : ''),
     });
-    group.append(svg('title', {}, n.kind + ' ' + n.id));
+    group.append(svg('title', {}, DEVICE_NAMES[role] + ' ' + n.id));
     group.append(svg('rect', {
-      class: 'halo', x: n.x - ICON_SIZE[n.kind][0] / 2 - 6,
-      y: n.y - ICON_SIZE[n.kind][1] / 2 - 6,
-      width: ICON_SIZE[n.kind][0] + 12, height: ICON_SIZE[n.kind][1] + 12,
-      rx: 13, visibility: 'hidden',
+      class: 'halo', x: n.x - iw / 2 - 6, y: n.y - ih / 2 - 6,
+      width: iw + 12, height: ih + 12, rx: 13, visibility: 'hidden',
     }));
     group.append(svg('rect', {
-      class: 'hit', x: n.x - ICON_SIZE[n.kind][0] / 2 - 4,
-      y: n.y - ICON_SIZE[n.kind][1] / 2 - 4,
-      width: ICON_SIZE[n.kind][0] + 8, height: ICON_SIZE[n.kind][1] + 8,
-      rx: 8, fill: 'transparent',
+      class: 'hit', x: n.x - iw / 2 - 4, y: n.y - ih / 2 - 4,
+      width: iw + 8, height: ih + 8, rx: 8, fill: 'transparent',
     }));
-    group.append(deviceIcon(n.kind, n.x, n.y));
+    group.append(deviceIcon(role, n.x, n.y));
     group.append(svg('text', {
-      x: n.x, y: n.y + ICON_SIZE[n.kind][1] / 2 + 15,
-      'text-anchor': 'middle', class: 'node-label',
+      x: n.x, y: n.y + ih / 2 + 15, 'text-anchor': 'middle',
+      class: 'node-label',
     }, n.id));
-    if (n.kind !== 'controller') wireNode(group, n);
+    if (n.kind === 'controller') {
+      group.classList.add('clickable');
+      group.addEventListener('click', () => select({ kind: 'network' }));
+    } else {
+      wireNode(group, n);
+    }
     nodeLayer.append(group);
   }
   canvas.append(edgeLayer, labelLayer, nodeLayer);
   canvas.onclick = (event) => {
     if (event.target !== canvas) return;
-    if ((state.tool === 'host' || state.tool === 'switch') && canEdit()) {
+    if (NODE_TOOLS[state.tool] && canEdit()) {
       const point = canvasPoint(event);
       action(null, () => addNode(state.tool, point.x, point.y));
+    } else if (state.tool === 'controller') {
+      action(null, useControllerTool);
     } else {
       select(null);
     }
@@ -860,6 +980,107 @@ async function loadGuide() {
   $('guide').replaceChildren(...groups);
 }
 
+// ----------------------------------------------------------------- menu
+
+function closeMenus(except) {
+  for (const title of document.querySelectorAll('.menu-title')) {
+    const open = title === except && title.getAttribute('aria-expanded') === 'false';
+    title.setAttribute('aria-expanded', String(open));
+    $('menu-' + title.dataset.menu).hidden = !open;
+  }
+}
+
+function showInfo(title, lines) {
+  const dialog = $('info-dialog');
+  $('info-title').textContent = title;
+  $('info-body').replaceChildren(...lines.map((line) => el('p', {}, line)));
+  dialog.showModal();
+}
+
+function deleteSelected() {
+  const selection = state.selection;
+  if (!selection || selection.kind === 'network' || !canEdit()) {
+    notify('Select a node or a link first.');
+    return;
+  }
+  action(null, () => (selection.kind === 'node'
+    ? deleteNode(selection.id) : deleteLink(selection.from, selection.to)));
+}
+
+// Save the canvas as a standalone SVG: the page's colours are resolved
+// into the file, so it opens anywhere
+function exportSvg() {
+  const graph = $('graph');
+  if (!graph.firstChild) { notify('Nothing to export yet.'); return; }
+  const style = getComputedStyle(document.documentElement);
+  const copy = graph.cloneNode(true);
+  const rules = [];
+  for (const sheet of document.styleSheets) {
+    let list = [];
+    try { list = sheet.cssRules || []; } catch (e) { list = []; }
+    for (const rule of list) {
+      if (rule.selectorText && rule.selectorText.includes('#graph')) {
+        rules.push(rule.cssText.replace(/var\(([^),]+)\)/g,
+          (all, name) => style.getPropertyValue(name.trim()) || all));
+      }
+    }
+  }
+  copy.setAttribute('xmlns', SVG_NS);
+  copy.insertBefore(svg('style', {}, rules.join('\n')), copy.firstChild);
+  const name = (state.config && state.config.name ? state.config.name : 'lab');
+  const url = URL.createObjectURL(new Blob(
+    [ '<?xml version="1.0" encoding="UTF-8"?>\n' + copy.outerHTML ],
+    { type: 'image/svg+xml' }));
+  const link = el('a', { href: url, download: name + '.svg' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  notify('Saved ' + name + '.svg to your downloads.');
+}
+
+const MENU_ACTIONS = {
+  new: () => action(null, newLab),
+  save: () => { if (!$('btn-save').disabled) action($('btn-save'), save); },
+  reload: () => $('btn-reload').click(),
+  export: exportSvg,
+  undo: () => action(null, undoChange),
+  delete: deleteSelected,
+  arrange: () => { if (canEdit()) action(null, autoArrange); },
+  network: () => select({ kind: 'network' }),
+  start: () => $('btn-start').click(),
+  stop: () => $('btn-stop').click(),
+  pingall: () => { selectTab('results'); $('btn-pingall').click(); },
+  console: () => selectTab('console'),
+  guide: () => selectTab('guide'),
+  keys: () => showInfo('Keyboard shortcuts', [
+    'h - host tool, r - router tool, s - switch tool, l - link tool',
+    'Esc - back to the select tool, Del - delete what is selected',
+    'Ctrl+Z - undo the last topology change, Ctrl+S - save the file' ]),
+  about: () => showInfo('About mn-gui', [
+    'The Mininet lab GUI: a topology editor and console for Mininet ' +
+      (state.status && state.status.version ? state.status.version : ''),
+    'Lab file: ' + ((state.status && state.status.path) || 'none'),
+    'Documentation: docs/gui.md and docs/configuration.md in the ' +
+      'repository.' ]),
+};
+
+function wireMenus() {
+  for (const title of document.querySelectorAll('.menu-title')) {
+    title.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeMenus(title);
+    });
+  }
+  for (const item of document.querySelectorAll('.menu [data-do]')) {
+    item.addEventListener('click', () => {
+      closeMenus(null);
+      MENU_ACTIONS[item.dataset.do]();
+    });
+  }
+  document.addEventListener('click', () => closeMenus(null));
+}
+
 // ----------------------------------------------------------------- tabs
 
 function selectTab(name) {
@@ -925,13 +1146,24 @@ function wire() {
     try { sessionStorage.setItem(TOKEN_KEY, state.token); } catch (e) { /* private mode */ }
     start();
   });
+  wireMenus();
   document.addEventListener('keydown', (e) => {
     if (e.target.matches('input, textarea')) return;
-    if (e.key === 'Escape') { state.linkStart = null; setTool('select'); select(null); }
-    else if (e.key === 'h') setTool('host');
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      if (canEdit()) action(null, undoChange);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape') {
+      closeMenus(null);
+      state.linkStart = null; setTool('select'); select(null);
+    } else if (e.key === 'h') setTool('host');
+    else if (e.key === 'r') setTool('router');
     else if (e.key === 's') setTool('switch');
     else if (e.key === 'l') setTool('link');
-    else if ((e.key === 'Delete' || e.key === 'Backspace') && state.selection && canEdit()) {
+    else if ((e.key === 'Delete' || e.key === 'Backspace') &&
+             state.selection && state.selection.kind !== 'network' && canEdit()) {
       e.preventDefault();
       const selection = state.selection;
       action(null, () => selection.kind === 'node'

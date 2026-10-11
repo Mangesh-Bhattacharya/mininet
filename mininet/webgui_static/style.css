@@ -25,6 +25,7 @@
   --dev-edge: #98a3b6;
   --dev-screen: #17202e;
   --switch: #2f7fd1;
+  --switch-top: #4f9ae4;
   --switch-edge: #1d5ea0;
   --ctrl: #aab3c1;
   --ctrl-edge: #78828f;
@@ -61,6 +62,7 @@
     --dev-edge: #4a5871;
     --dev-screen: #080c12;
     --switch: #3b8fe0;
+    --switch-top: #5aa6ea;
     --switch-edge: #2a6ba9;
     --ctrl: #7f8a9c;
     --ctrl-edge: #5c6577;
@@ -156,6 +158,35 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    Device icons and link colours follow the original MiniEdit. */
 .head-right { display: flex; align-items: center; gap: 10px; }
 .small-btn { padding: 3px 9px; font-size: 0.82rem; }
+
+/* Menu bar, as in MiniEdit: File, Edit, Run, Help */
+.menubar {
+  display: flex; gap: 2px; margin: 8px 0 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--code-bg); padding: 2px;
+}
+.menu-wrap { position: relative; }
+.menu-title {
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: 3px 12px; font-size: 0.88rem;
+}
+.menu-title:hover, .menu-title[aria-expanded="true"] {
+  background: var(--panel); border-color: var(--border);
+}
+.menu {
+  position: absolute; top: calc(100% + 3px); left: 0; z-index: 20;
+  min-width: 220px; padding: 4px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+.menu button {
+  display: flex; justify-content: space-between; gap: 18px; width: 100%;
+  border: none; border-radius: 6px; background: none; text-align: left;
+  padding: 6px 10px; font-size: 0.88rem;
+}
+.menu button:hover { background: var(--code-bg); }
+.menu .key { color: var(--muted); font-size: 0.8rem; }
+
 .editor-area { display: flex; gap: 10px; margin-top: 8px; }
 .palette {
   display: flex; flex-direction: column; gap: 6px; padding: 7px;
@@ -172,7 +203,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .palette .tool .glyph { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .palette .tool .glyph-fill { fill: var(--text); }
 .palette .tool .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+.palette .tool .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
 .palette .tool .gloss { fill: #fff; opacity: 0.18; }
+.palette .tool .slot { fill: var(--dev-screen); opacity: .8; }
 .palette .tool .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .palette .tool[data-tool="link"] .glyph { stroke: var(--link); }
 .palette .tool[data-tool="link"] .glyph-fill { fill: var(--link); }
@@ -205,6 +238,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 #graph .icon.controller .case { fill: var(--ctrl); stroke: var(--ctrl-edge); }
 #graph .icon .screen { fill: var(--dev-screen); }
 #graph .icon .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .icon .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .node.clickable { cursor: pointer; }
 #graph .icon .gloss { fill: #fff; opacity: 0.16; }
 #graph .icon .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #graph .icon .slot { fill: var(--dev-screen); opacity: .8; }

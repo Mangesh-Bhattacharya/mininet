@@ -31,6 +31,7 @@ import hmac
 import io
 import json
 import os
+import re
 import secrets
 import signal
 import subprocess
@@ -82,6 +83,19 @@ class GuiError( Exception ):
 def isRoot():
     "Are we running as root (needed to start networks)?"
     return hasattr( os, 'geteuid' ) and os.geteuid() == 0
+
+
+def mininetVersion():
+    """Mininet's version, read from the source rather than imported:
+       mininet.net only imports on Linux, and the GUI also runs on
+       Windows and macOS"""
+    source = os.path.join( os.path.dirname( __file__ ), 'net.py' )
+    try:
+        with io.open( source, encoding='utf-8' ) as f:
+            found = re.search( r'^VERSION\s*=\s*"([^"]+)"', f.read(), re.M )
+    except OSError:
+        return ''
+    return found.group( 1 ) if found else ''
 
 
 def writeFile( path, text ):
@@ -287,6 +301,7 @@ class LabSession( object ):
                       if cfg else [] )
         return {
             'running': self.running(), 'root': isRoot(),
+            'version': mininetVersion(),
             'path': self.path, 'language': self.lang.title,
             'format': self.lang.key, 'editable': self.editable(),
             'name': cfg[ 'name' ] if cfg else None,

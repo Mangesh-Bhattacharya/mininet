@@ -103,6 +103,13 @@ class TemplateTests( unittest.TestCase ):
                 [ 'init', '-o', dest, '--force' ] ), 0 )
 
 
+# A lab with one of each MiniEdit node kind
+LEGACY_LAB = {
+    'hosts': [ { 'name': 'r1', 'router': True }, { 'name': 'h1' } ],
+    'switches': [ { 'name': 's1', 'legacy': True }, { 'name': 's2' } ],
+    'links': [ [ 'h1', 's1' ], [ 'r1', 's2' ] ] }
+
+
 class ValidationTests( unittest.TestCase ):
     "Checks and friendly messages"
 
@@ -236,6 +243,29 @@ class ValidationTests( unittest.TestCase ):
     def testVersion( self ):
         "Only version 1 exists"
         self.assertInvalid( { 'version': 2 }, 'version' )
+
+    def testLegacyNodes( self ):
+        "Legacy routers and switches: roles, no control link, summary"
+        cfg = validate( LEGACY_LAB )
+        graph = labconfig.graph( cfg )
+        roles = { n[ 'id' ]: n[ 'role' ] for n in graph[ 'nodes' ] }
+        self.assertEqual( roles, { 'r1': 'router', 'h1': 'host',
+                                   's1': 'legacyswitch', 's2': 'switch',
+                                   'c0': 'controller' } )
+        control = [ l[ 'to' ] for l in graph[ 'links' ]
+                    if l.get( 'control' ) ]
+        self.assertEqual( control, [ 's2' ] )  # not the legacy switch
+        self.assertIn( 'standalone', labconfig.summary( cfg ) )
+        self.assertIn( 'a router', labconfig.summary( cfg ) )
+
+    def testLegacyFlagsAreBooleans( self ):
+        "router and legacy only take true/false"
+        self.assertInvalid( { 'hosts': [ { 'name': 'h1',
+                                           'router': 'yes' } ] },
+                            'hosts.h1.router' )
+        self.assertInvalid( { 'switches': [ { 'name': 's1',
+                                              'legacy': 1 } ] },
+                            'switches.s1.legacy' )
 
     def testNotAMapping( self ):
         "Top level must be a mapping"
@@ -399,6 +429,20 @@ class BuildTests( unittest.TestCase ):
                                    'c0': 'controller' } )
         labels = [ l[ 'label' ] for l in graph[ 'links' ] ]
         self.assertIn( '10Mb/s 5ms 1% loss', labels )
+
+    def testLegacyNodeClasses( self ):
+        "router: true and legacy: true choose Mininet classes"
+        # pylint: disable=import-outside-toplevel
+        from mininet.node import Node, OVSBridge
+        from mininet.nodelib import LinuxBridge
+        cfg = validate( LEGACY_LAB )
+        topo = labconfig.buildTopo( cfg )
+        self.assertTrue( issubclass( topo.nodeInfo( 'r1' )[ 'cls' ], Node ) )
+        self.assertIs( topo.nodeInfo( 's1' )[ 'cls' ], OVSBridge )
+        self.assertNotIn( 'cls', topo.nodeInfo( 's2' ) )
+        onBridges = dict( LEGACY_LAB, network={ 'switch': 'lxbr' } )
+        topo = labconfig.buildTopo( validate( onBridges ) )
+        self.assertIs( topo.nodeInfo( 's1' )[ 'cls' ], LinuxBridge )
 
 
 class ProgramTests( unittest.TestCase ):
