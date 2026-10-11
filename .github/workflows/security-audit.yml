@@ -1,0 +1,198 @@
+name: security-audit
+
+# The fortnightly deep security pass, on top of the checks that run on
+# every change (security.yml) and the weekly updates (dependabot.yml,
+# docker.yml): malware scanning of the image people actually pull,
+# dependency scanning against the OSV database, a secret scan of the
+# whole git history, and a report that maps every control onto the
+# MITRE ATT&CK technique it defends against.
+#
+# Nobody has to start it: it runs on the 1st and the 15th of each
+# month, and a failing audit opens an issue by itself.
+
+on:
+  schedule:
+    - cron: "0 4 1,15 * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/security-audit.yml"
+      - "scripts/security/**"
+      - "docs/security/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/mangesh-bhattacharya/mininet:latest
+
+jobs:
+  malware:
+    name: Malware scan (ClamAV)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install ClamAV and fetch today's signatures
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq clamav
+          sudo systemctl stop clamav-freshclam 2> /dev/null || true
+          sudo freshclam --quiet || true   # mirrors rate-limit; the
+          # package already ships a signature database
+          clamscan --version
+      - name: Scan the working tree
+        run: |
+          clamscan --recursive --infected --exclude-dir='^\.git' . \
+            | tee clamav.txt || true
+      - name: Scan the published image's filesystem
+        run: |
+          docker pull "$IMAGE"
+          container=$( docker create "$IMAGE" )
+          mkdir rootfs
+          docker export "$container" | sudo tar -x -C rootfs \
+            --exclude='dev/*' --exclude='proc/*' --exclude='sys/*' || true
+          docker rm "$container" > /dev/null
+          sudo clamscan --recursive --infected rootfs | tee -a clamav.txt \
+            || true
+          sudo rm -rf rootfs
+      - name: Infected files, if any
+        run: grep -E '^(Infected files|.*FOUND$)' clamav.txt || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: clamav
+          path: clamav.txt
+
+  dependencies:
+    name: Dependency scan (OSV)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --format=json
+            --output=osv.json
+            --recursive
+            ./
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: osv
+          path: osv.json
+
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan every commit for secrets
+        # The upstream image, pinned by digest (v8.30.1). --exit-code 0
+        # keeps the step green: the report job decides what to do.
+        run: |
+          docker run --rm --volume "$PWD:/repo" --workdir /repo \
+            ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --report-format json --report-path /repo/gitleaks.json \
+            --exit-code 0 --redact
+          sudo chown "$( id -u ):$( id -g )" gitleaks.json
+          test -s gitleaks.json || echo '[]' > gitleaks.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gitleaks
+          path: gitleaks.json
+
+  image:
+    name: Image scan (Trivy)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-policy: .trivy/ignore-kernel-headers.rego
+          format: sarif
+          output: trivy-image.sarif
+      - name: Upload to GitHub code scanning
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trivy
+          path: trivy-image.sarif
+
+  report:
+    name: ATT&CK coverage report
+    needs: [malware, dependencies, secrets, image]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: results
+          merge-multiple: true
+      - name: Write the report
+        id: report
+        run: |
+          set +e
+          python scripts/security/attack-report.py --summary \
+            --clamav results/clamav.txt \
+            --osv results/osv.json \
+            --gitleaks results/gitleaks.json \
+            --trivy results/trivy-image.sarif > report.md
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          cat report.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: attack-report
+          path: report.md
+      - name: Open an issue when something needs attention
+        if: steps.report.outputs.clean == 'false' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Security audit $( date -u +%Y-%m-%d ): findings to review"
+          { cat report.md; echo; echo "Run: $RUN"; } > issue.md
+          gh issue create --repo "${{ github.repository }}" \
+            --title "$title" --body-file issue.md --label security \
+            || gh issue create --repo "${{ github.repository }}" \
+                 --title "$title" --body-file issue.md
+      - name: Fail if the audit found something
+        if: steps.report.outputs.clean == 'false'
+        run: exit 1
