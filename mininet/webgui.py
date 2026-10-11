@@ -119,7 +119,8 @@ def startBlocker( path=None ):
        ( None, None ) when nothing is in the way."""
     action = ( 'Stop it (Ctrl-C) and start it again with: sudo mn-gui'
                '%s' % ( ' --config %s' % path if path else '' ) )
-    return elevate.blocker( action, path, what='mn-gui' )
+    # isRoot() here, not elevate's: this module owns that question
+    return elevate.blocker( action, path, what='mn-gui', root=isRoot() )
 
 
 def hintFor( text ):

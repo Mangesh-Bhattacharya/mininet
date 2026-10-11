@@ -555,7 +555,14 @@ class CommandLineTests( unittest.TestCase ):
         path = labconfig.templatePath( labconfig.languageByKey( 'json' ) )
         code, _, err = self.mnconfig( 'run', path )
         self.assertEqual( code, 1 )
-        self.assertIn( 'sudo', err )
+        if sys.platform.startswith( 'linux' ):
+            self.assertIn( 'sudo mn-config run', err )
+            self.assertIn( 'nonroot-setup.sh', err )  # the other way
+        else:
+            # Telling a Windows or macOS user to type sudo would be
+            # useless: nothing on those machines can run a network
+            self.assertIn( 'no Linux kernel', err )
+            self.assertNotIn( 'sudo mn-config', err )
 
 
 if __name__ == '__main__':

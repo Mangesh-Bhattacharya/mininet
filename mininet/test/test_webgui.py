@@ -361,6 +361,22 @@ class HintTests( unittest.TestCase ):
         "An error nobody anticipated gets no invented advice"
         self.assertIsNone( webgui.hintFor( 'something odd happened' ) )
 
+    def testNothingInTheWayWhenRoot( self ):
+        "As root on Linux, nothing blocks a start"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ), \
+                mock.patch.object( webgui, 'isRoot', return_value=True ):
+            self.assertEqual( webgui.startBlocker( '/tmp/lab.yaml' ),
+                              ( None, None ) )
+
+    def testRootIsThisModulesQuestion( self ):
+        "startBlocker asks webgui.isRoot, which the server can patch"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ), \
+                mock.patch.object( webgui, 'isRoot', return_value=False ):
+            reason, _hint = webgui.startBlocker( '/tmp/lab.yaml' )
+        self.assertIn( 'not running as root', reason )
+
 
 class InvalidConfigTests( GuiTestCase ):
     "A broken file loads, but can't be started"

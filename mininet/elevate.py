@@ -76,21 +76,22 @@ OTHER_PLATFORM = ( 'this computer is not running Linux',
                    'namespaces: run the lab in Docker or a Linux VM.' )
 
 
-def blocker( action=None, path=None, what='this command' ):
+def blocker( action=None, path=None, what='this command', root=None ):
     """Why can this machine not start a network, and what should the
        person do about it? Returns ( reason, hint ), or ( None, None )
        when nothing is in the way.
 
        Telling a Windows user to type sudo would be useless advice, so
        the answer depends on the machine. On Linux, action is the
-       sentence to tell the reader, e.g. "Run it with: sudo mn ..."."""
+       sentence to tell the reader, e.g. "Run it with: sudo mn ...".
+       Pass root when the caller tracks privileges itself."""
     if not isLinux():
         reason, hint = ELSEWHERE.get( sys.platform, OTHER_PLATFORM )
         if '%(file)s' in hint:
             hint = hint % { 'file': os.path.basename( path ) if path
                             else 'lab.yaml' }
         return reason, hint
-    if not isRoot():
+    if not ( isRoot() if root is None else root ):
         return ( '%s is not running as root' % what,
                  '%s - or, to stop typing sudo at all, %s'
                  % ( action or 'Run it with sudo', setupHint() ) )
