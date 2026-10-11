@@ -9,6 +9,9 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <!-- Everything above the activity drawer scrolls in here, so the
+       drawer never covers a button -->
+  <div class="app">
   <header class="topbar">
     <div class="brand">
       <span class="logo" aria-hidden="true"></span>
@@ -225,6 +228,7 @@
       </div>
     </section>
   </main>
+  </div>
 
   <section id="activity" class="activity" aria-labelledby="activity-title">
     <div class="activity-head">

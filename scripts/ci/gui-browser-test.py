@@ -243,7 +243,10 @@ def check_network( page, outdir, suffix ):
 def run( browser, url, token, outdir, scheme, network, edit ):
     "One pass through the GUI in a colour scheme"
     suffix = '' if scheme == 'light' else '-dark'
-    context = browser.new_context( viewport={ 'width': 1440, 'height': 900 },
+    # Tall enough for the whole app shell - the work area scrolls
+    # inside the page, so a screenshot is one viewport
+    context = browser.new_context( viewport={ 'width': 1440,
+                                              'height': 1150 },
                                    color_scheme=scheme,
                                    device_scale_factor=1 )
     page = context.new_page()
