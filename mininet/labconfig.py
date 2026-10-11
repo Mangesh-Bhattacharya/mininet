@@ -949,7 +949,7 @@ def routerClass():
     class LabRouter( Node ):
         "A Mininet host with IP forwarding switched on"
 
-        def config( self, **params ):
+        def config( self, **params ):  # pylint: disable=arguments-differ
             "Switch forwarding on when the node starts"
             result = super( LabRouter, self ).config( **params )
             self.cmd( 'sysctl -w net.ipv4.ip_forward=1' )
