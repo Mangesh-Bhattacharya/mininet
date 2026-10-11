@@ -39,7 +39,7 @@ jobs:
       - name: Install PyYAML
         run: python -m pip install -r requirements.txt
       - name: Unit tests (mn-doctor, mn-config, mn-gui)
-        run: python -m unittest -v mininet.test.test_doctor mininet.test.test_labconfig mininet.test.test_webgui
+        run: python -m unittest -v mininet.test.test_doctor mininet.test.test_labconfig mininet.test.test_webgui mininet.test.test_elevate
 
   wheel:
     # "pip install ." has to work from a clone on every operating system.

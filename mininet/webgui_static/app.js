@@ -251,7 +251,10 @@ async function refreshStatus() {
     : !status.name ? 'The configuration has errors: fix them under the editor first.'
       : !status.root ? 'mn-gui is running without root, so it can edit labs but not ' +
         'start them. Stop it and start it again with: sudo mn-gui --config ' +
-        (status.path || 'lab.yaml')
+        (status.path || 'lab.yaml') +
+        (status.sudoFree ? '' : ' - or, to stop typing sudo altogether, ask an ' +
+          'administrator to run once: sudo util/nonroot-setup.sh --user ' +
+          (status.user || 'youruser'))
         : '';
   if (why) unavailable($('btn-start'), why); else available($('btn-start'));
   $('btn-start').disabled = false;

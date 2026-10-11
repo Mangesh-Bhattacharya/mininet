@@ -41,7 +41,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from mininet import labconfig
+from mininet import elevate, labconfig
 from mininet.labconfig import ConfigError
 
 STATIC_DIR = os.path.join( os.path.dirname( os.path.abspath( __file__ ) ),
@@ -253,7 +253,8 @@ class LabSession( object ):
                 raise GuiError(
                     'starting a network needs root', 403,
                     'Stop mn-gui (Ctrl-C) and start it again with: %s'
-                    % command )
+                    ' - or, to stop typing sudo at all, %s'
+                    % ( command, elevate.setupHint() ) )
             net = self.netFactory( self.cfg )
             try:
                 net.start()
@@ -350,7 +351,8 @@ class LabSession( object ):
                       if cfg else [] )
         return {
             'running': self.running(), 'root': isRoot(),
-            'version': mininetVersion(),
+            'version': mininetVersion(), 'user': elevate.userName(),
+            'sudoFree': os.path.exists( elevate.SUDOERS ),
             'path': self.path, 'language': self.lang.title,
             'format': self.lang.key, 'editable': self.editable(),
             'name': cfg[ 'name' ] if cfg else None,
@@ -598,6 +600,9 @@ def main( argv=None ):
     args = parser().parse_args( argv )
     from mininet.log import setLogLevel, info, warn  # pylint: disable=C0415
     setLogLevel( args.verbosity )
+    # Where an administrator has set it up (util/nonroot-setup.sh),
+    # re-run as root so that nobody has to type sudo
+    elevate.elevate()
     try:
         if args.config and not os.path.exists( args.config ):
             # Start a new lab from the matching starter template

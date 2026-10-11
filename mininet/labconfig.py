@@ -1201,9 +1201,14 @@ def _cmdShow( args ):
 def _cmdRun( args ):
     "mn-config run"
     cfg = load( args.file )
-    if not hasattr( os, 'geteuid' ) or os.geteuid() != 0:
-        print( 'mn-config run needs root: sudo mn-config run %s' %
-               args.file, file=sys.stderr )
+    # pylint: disable=import-outside-toplevel
+    from mininet import elevate
+    if not elevate.isRoot():
+        # Where an administrator has set it up, re-run as root so that
+        # nobody has to type sudo
+        elevate.elevate()
+        print( 'mn-config run needs root: sudo mn-config run %s\n%s' %
+               ( args.file, elevate.setupHint() ), file=sys.stderr )
         return 1
     # pylint: disable=import-outside-toplevel
     from mininet.log import setLogLevel, info
