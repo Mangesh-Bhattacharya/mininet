@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Scan the published image
+      - name: Scan the published image (everything, for the Security tab)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
@@ -138,10 +138,27 @@ jobs:
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
+      - name: Scan again for what can actually be fixed
+        # The audit reports problems somebody can act on. A
+        # vulnerability the distribution has not patched yet would
+        # otherwise fail every run until Ubuntu ships a fix.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          ignore-policy: .trivy/ignore-kernel-headers.rego
+          format: json
+          output: trivy-image.json
+          skip-setup-trivy: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trivy
-          path: trivy-image.sarif
+          path: |
+            trivy-image.sarif
+            trivy-image.json
 
   report:
     name: ATT&CK coverage report
@@ -167,7 +184,7 @@ jobs:
             --clamav results/clamav.txt \
             --osv results/osv.json \
             --gitleaks results/gitleaks.json \
-            --trivy results/trivy-image.sarif > report.md
+            --trivy results/trivy-image.json > report.md
           status=$?
           set -e
           if [ "$status" -eq 0 ]; then

@@ -181,13 +181,22 @@ def readJson( path ):
             return None
 
 
-def countSarif( path ):
-    "Number of results in a SARIF file"
+def countTrivy( path ):
+    """Number of findings Trivy reported. A Trivy JSON report is
+       counted vulnerability by vulnerability; a SARIF file by its
+       results. The audit is given the report of *fixable* problems:
+       vulnerabilities Ubuntu has not fixed yet cannot be acted on, so
+       they are tracked on the Security tab instead of failing every
+       run forever."""
     data = readJson( path )
     if data is None:
         return None
-    return sum( len( run.get( 'results', [] ) )
-                for run in data.get( 'runs', [] ) )
+    if 'runs' in data:
+        return sum( len( run.get( 'results', [] ) )
+                    for run in data.get( 'runs', [] ) )
+    return sum( len( result.get( 'Vulnerabilities' ) or [] ) +
+                len( result.get( 'Secrets' ) or [] )
+                for result in data.get( 'Results' ) or [] )
 
 
 def countOsv( path ):
@@ -211,18 +220,18 @@ def countGitleaks( path ):
 
 
 def countClamav( path ):
-    "Number of infected files clamscan reported"
+    "Infected files clamscan reported, over all of its scan summaries"
     if not path or not os.path.exists( path ):
         return None
     with open( path, encoding='utf-8', errors='replace' ) as handle:
-        found = re.search( r'^Infected files:\s*(\d+)', handle.read(),
-                           re.M )
-    return int( found.group( 1 ) ) if found else None
+        found = re.findall( r'^Infected files:\s*(\d+)', handle.read(),
+                            re.M )
+    return sum( int( n ) for n in found ) if found else None
 
 
 def findings( args ):
     "Map each evidence name to a count, or None when it did not run"
-    return { 'trivy': countSarif( args.trivy ),
+    return { 'trivy': countTrivy( args.trivy ),
              'osv': countOsv( args.osv ),
              'clamav': countClamav( args.clamav ),
              'gitleaks': countGitleaks( args.gitleaks ),
@@ -281,10 +290,14 @@ def summary( args ):
                                  for name, count in sorted(
                                      bad.items() ) ) )
     else:
-        lines.append( 'No malware, vulnerable dependencies or leaked '
-                      'secrets were found.' )
+        lines.append( 'No malware, leaked secrets, vulnerable '
+                      'dependencies or fixable image vulnerabilities '
+                      'were found.' )
     lines += [ '', table( counts ), '',
-               'Full reference: docs/security/attack-coverage.md' ]
+               'Vulnerabilities the distribution has not fixed yet are '
+               'listed on the Security tab rather than counted here: '
+               'there is nothing to update until a patch exists.',
+               '', 'Full reference: docs/security/attack-coverage.md' ]
     return '\n'.join( lines ), not bad
 
 
