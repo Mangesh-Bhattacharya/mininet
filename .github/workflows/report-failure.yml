@@ -1,0 +1,44 @@
+name: report-failure
+
+# Opens an issue when a scheduled run fails, so a broken weekly patch
+# cycle or test matrix cannot pass unnoticed in a repository nobody is
+# watching. Called by the scheduled workflows; one issue per workflow
+# stays open and is updated rather than duplicated.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  issue:
+    name: Report the failure
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          FLOW: ${{ github.workflow }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Scheduled run of \"$FLOW\" failed"
+          body="The scheduled $FLOW workflow failed on $( date -u +%F ).
+          Until it passes again, this project is not getting the
+          updates or the checks that run on that schedule.
+
+          Run: $RUN"
+          existing=$( gh issue list --repo "$REPO" --state open \
+            --search "\"$title\" in:title" --json number \
+            --jq '.[0].number' )
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "$body"
+          else
+            gh issue create --repo "$REPO" --title "$title" \
+              --body "$body" --label ci || \
+            gh issue create --repo "$REPO" --title "$title" --body "$body"
+          fi

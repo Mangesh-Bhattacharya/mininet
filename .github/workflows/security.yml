@@ -131,3 +131,11 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
           skip-setup-trivy: true
+
+  report-failure:
+    needs: [codeql, pip-audit, trivy-repo]
+    if: failure() && github.event_name == 'schedule'
+    uses: ./.github/workflows/report-failure.yml
+    permissions:
+      contents: read
+      issues: write

@@ -335,3 +335,11 @@ jobs:
           chmod +x install-mininet-vm.sh
           MININET_REPO="https://github.com/${{ github.repository }}.git" \
             ./install-mininet-vm.sh ${{ github.sha }}
+
+  report-failure:
+    needs: [unit, wheel, native, languages, gui-browser, gui-desktop, debian-package, examples]
+    if: failure() && github.event_name == 'schedule'
+    uses: ./.github/workflows/report-failure.yml
+    permissions:
+      contents: read
+      issues: write

@@ -39,6 +39,10 @@ update must pass the full test suite before it is used.
 | Whenever an update passes every check | It merges itself: no one has to click. Major version bumps are left for a human, with a comment saying why | [`auto-update.yml`](.github/workflows/auto-update.yml) |
 | Every 1st and 15th, 04:00 UTC (about every two weeks) | The deep audit: a **ClamAV malware scan** of the working tree and of the published image's filesystem, an **OSV-Scanner** dependency scan, a **gitleaks** secret scan of the whole git history, a Trivy scan of the image people actually pull, and a report mapping every control onto the **MITRE ATT&CK** technique it defends against. A finding opens an issue by itself | [`security-audit.yml`](.github/workflows/security-audit.yml) |
 
+A scheduled run that fails opens an issue of its own
+([`report-failure.yml`](.github/workflows/report-failure.yml)), so a
+patch cycle cannot stop quietly.
+
 Patching runs **weekly**, which is more often than the two-week
 maximum this project sets itself; the deep audit above runs every two
 weeks. What each control defends against, technique by technique:
