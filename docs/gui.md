@@ -21,6 +21,11 @@ machine hosting that container or VM.
   each other as a matrix.
 - **Console**: run commands on any node (`ip addr`, `ping`, `curl`...)
   and measure bandwidth with iperf.
+- **Activity log** (the strip along the bottom): every command the lab
+  runs, with its output, and every error - each one with a line saying
+  what to try. A button that cannot do its job says so there instead of
+  doing nothing: press **Run** in a GUI started without `sudo` and the
+  log tells you the exact command to restart it with.
 - **Guide**: every setting, grouped by *edit freely*, *advanced* and *do
   not edit*.
 

@@ -130,25 +130,104 @@ function notify(message, isError) {
   box.hidden = !message;
 }
 
+// -------------------------------------------------------- activity log
+
+// What to suggest for an error the server did not explain itself
+const HINTS = [
+  [ /root|sudo|permission denied/i,
+    'Stop mn-gui and start it again with sudo to run networks.' ],
+  [ /failed to fetch|networkerror|load failed/i,
+    'mn-gui is not answering: check the terminal you started it in.' ],
+  [ /access token|401/i,
+    'Open the URL mn-gui printed, including the #token=... part.' ],
+  [ /configuration problem|not valid/i,
+    'Fix the problems listed under the editor, then try again.' ],
+];
+
+const LOG_LIMIT = 200;
+
+function hintFor(message) {
+  for (const [ pattern, hint ] of HINTS) {
+    if (pattern.test(message)) return hint;
+  }
+  return '';
+}
+
+function logEvent(kind, title, detail, hint) {
+  const list = $('activity-log');
+  const now = new Date();
+  const item = el('li', { class: 'log ' + kind });
+  item.append(el('time', {}, now.toTimeString().slice(0, 8)),
+              el('span', { class: 'log-title' }, title));
+  if (detail) item.append(el('pre', { class: 'log-detail' }, detail));
+  const help = hint || (kind === 'error' ? hintFor(title) : '');
+  if (help) item.append(el('p', { class: 'log-hint' }, 'Try: ' + help));
+  list.append(item);
+  while (list.children.length > LOG_LIMIT) list.firstChild.remove();
+  list.scrollTop = list.scrollHeight;
+  if (kind === 'error') {   // a failure always shows itself
+    $('activity').classList.remove('collapsed');
+    document.body.classList.remove('activity-collapsed');
+    $('btn-activity-toggle').textContent = 'Hide';
+    $('btn-activity-toggle').setAttribute('aria-expanded', 'true');
+    list.scrollTop = list.scrollHeight;
+  }
+  return item;
+}
+
+function logState(text) {
+  $('activity-state').textContent = text;
+}
+
+// Report why a control that looks available did nothing
+function unavailable(button, reason) {
+  button.setAttribute('aria-disabled', 'true');
+  button.dataset.reason = reason;
+  button.classList.add('unavailable');
+}
+
+function available(button) {
+  button.removeAttribute('aria-disabled');
+  delete button.dataset.reason;
+  button.classList.remove('unavailable');
+}
+
+function blocked(button) {
+  if (!button || button.getAttribute('aria-disabled') !== 'true') return false;
+  logEvent('blocked', button.textContent.trim() + ': nothing happened',
+           null, button.dataset.reason);
+  notify(button.dataset.reason, false);
+  return true;
+}
+
 // Actions run one at a time, in the order they were triggered: clicking
 // Save while another change is still being applied must not lose it
 let queue = Promise.resolve();
 
-function action(button, fn) {
-  queue = queue.then(() => runAction(button, fn)).catch(() => {});
+function action(button, fn, name) {
+  if (blocked(button)) return queue;
+  queue = queue.then(() => runAction(button, fn, name)).catch(() => {});
   return queue;
 }
 
-async function runAction(button, fn) {
+async function runAction(button, fn, name) {
   state.busy = true;
   const label = button ? button.textContent : '';
   if (button) { button.disabled = true; button.textContent = label + '...'; }
+  const what = name || label.trim();
+  if (what) logState(what + '...');
   try {
     notify('');
     await fn();
+    if (what) logState('Ready');
   } catch (e) {
     notify(e.message, true);
-    if (e.data && e.data.issues) showIssues(e.data.issues);
+    const data = e.data || {};
+    logEvent('error', (what ? what + ': ' : '') + e.message,
+             (data.issues || []).map((i) => i.path + ': ' + i.message)
+               .join('\n'), data.hint);
+    logState('Last action failed');
+    if (data.issues) showIssues(data.issues);
   } finally {
     state.busy = false;
     if (button) button.textContent = label;
@@ -166,10 +245,23 @@ async function refreshStatus() {
   if (status.running) { pill.textContent = 'Running'; pill.className = 'pill running'; }
   else if (!status.name) { pill.textContent = 'Config has errors'; pill.className = 'pill invalid'; }
   else { pill.textContent = 'Stopped'; pill.className = 'pill'; }
-  $('btn-start').disabled = status.running || !status.name || !status.root;
-  $('btn-start').title = status.root ? '' : 'Run mn-gui with sudo to start networks';
-  $('btn-stop').disabled = !status.running;
-  $('btn-pingall').disabled = !status.running;
+  // These stay clickable even when they cannot work, so that a click
+  // says why instead of doing nothing at all
+  const why = status.running ? 'The network is already running - press Stop first.'
+    : !status.name ? 'The configuration has errors: fix them under the editor first.'
+      : !status.root ? 'mn-gui is running without root, so it can edit labs but not ' +
+        'start them. Stop it and start it again with: sudo mn-gui --config ' +
+        (status.path || 'lab.yaml')
+        : '';
+  if (why) unavailable($('btn-start'), why); else available($('btn-start'));
+  $('btn-start').disabled = false;
+  $('btn-start').title = why;
+  for (const id of ['btn-stop', 'btn-pingall']) {
+    const button = $(id);
+    button.disabled = false;
+    if (status.running) available(button);
+    else unavailable(button, 'The network is not running: press Run first.');
+  }
   // Don't overwrite the summary of unsaved edits with the file's
   if ($('editor').value === state.savedText) $('summary').textContent = status.summary;
   fillNodeLists(status);
@@ -927,6 +1019,13 @@ function appendConsole(command, output, extra) {
   const box = $('console');
   box.append(el('span', { class: 'cmd' }, command + '\n'), output, extra ? extra + '\n' : '', '\n');
   box.scrollTop = box.scrollHeight;
+  // Everything that runs on a node also shows up in the activity log,
+  // so one panel tells the whole story
+  const text = ((output || '') + ' ' + (extra || '')).trim();
+  const bad = /exit code|stopped after|error|not found|unreachable|refused/i
+    .test(text);
+  logEvent(bad ? 'warn' : 'cmd', command, text.slice(0, 2000),
+    bad ? hintFor(text) : '');
 }
 
 async function runCommand(event) {
@@ -1102,8 +1201,16 @@ async function start() {
     if (dialog.open) dialog.close();
     notify('');
     await Promise.all([loadConfig(), loadGuide()]);
+    logEvent('ok', 'Connected to mn-gui' +
+      (state.status.version ? ' (Mininet ' + state.status.version + ')' : ''),
+      state.status.path);
     if (!state.status.root) {
-      notify('Edit-only mode: mn-gui is not running as root, so you can edit and validate but not start networks. Restart it with sudo.');
+      const message = 'Edit-only mode: mn-gui is not running as root, so you ' +
+        'can edit and validate but not start networks. Restart it with sudo.';
+      notify(message);
+      logEvent('warn', 'Edit-only mode: this mn-gui cannot start networks',
+        null, 'Stop it and start it again with: sudo mn-gui --config ' +
+        (state.status.path || 'lab.yaml'));
     }
   } catch (e) {
     notify(e.message, true);
@@ -1119,14 +1226,36 @@ function wire() {
   }
   $('btn-arrange').addEventListener('click', (e) => action(e.currentTarget, autoArrange));
   $('btn-start').addEventListener('click', (e) => action(e.currentTarget, async () => {
+    logEvent('step', 'Building and starting the network',
+             state.status ? state.status.summary : '');
     const result = await api('POST', 'start');
     for (const item of result.startup) appendConsole(item.command, item.output);
+    logEvent('ok', 'The network is running');
     notify('Network started. Try Ping all, or run commands in the Console tab.');
-  }));
-  $('btn-stop').addEventListener('click', (e) => action(e.currentTarget, () => api('POST', 'stop')));
-  $('btn-pingall').addEventListener('click', (e) => action(e.currentTarget, async () => showPing(await api('POST', 'pingall'))));
+  }, 'Run network'));
+  $('btn-stop').addEventListener('click', (e) => action(e.currentTarget, async () => {
+    await api('POST', 'stop');
+    logEvent('ok', 'The network is stopped');
+  }, 'Stop network'));
+  $('btn-pingall').addEventListener('click', (e) => action(e.currentTarget, async () => {
+    const result = await api('POST', 'pingall');
+    showPing(result);
+    logEvent(result.loss ? 'warn' : 'ok',
+             `Ping all: ${result.loss}% of pings lost`, null,
+             result.loss ? 'The Results tab shows which pairs fail; a '
+               + 'missing link or address is the usual cause.' : '');
+  }, 'Ping all'));
   $('btn-validate').addEventListener('click', (e) => action(e.currentTarget, () => validateNow()));
-  $('btn-save').addEventListener('click', (e) => action(e.currentTarget, save));
+  $('btn-save').addEventListener('click', (e) => action(e.currentTarget, save, 'Save'));
+  $('btn-activity-clear').addEventListener('click', () => {
+    $('activity-log').replaceChildren();
+  });
+  $('btn-activity-toggle').addEventListener('click', (e) => {
+    const hidden = $('activity').classList.toggle('collapsed');
+    document.body.classList.toggle('activity-collapsed', hidden);
+    e.currentTarget.textContent = hidden ? 'Show' : 'Hide';
+    e.currentTarget.setAttribute('aria-expanded', String(!hidden));
+  });
   $('btn-reload').addEventListener('click', (e) => action(e.currentTarget, async () => {
     if ($('editor').value !== state.savedText && !confirm('Discard your unsaved changes?')) return;
     state.status = await api('POST', 'reload');

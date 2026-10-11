@@ -73,11 +73,53 @@ DEFAULT_CONFIG = os.path.join( labconfig.TEMPLATE_DIR, 'lab.yaml' )
 
 
 class GuiError( Exception ):
-    "An API request that can't be completed; status is the HTTP status"
+    """An API request that can't be completed; status is the HTTP
+       status and hint tells the user what to do about it"""
 
-    def __init__( self, message, status=400 ):
+    def __init__( self, message, status=400, hint=None ):
         Exception.__init__( self, message )
         self.status = status
+        self.hint = hint
+
+
+# What to suggest when something goes wrong. The GUI shows the hint
+# next to the error in its activity log, so a failure says what to try
+# instead of only what happened.
+TROUBLE = [
+    # More specific patterns first: the first match wins
+    ( r'Cannot find required executable',
+      'Install the missing program - util/install.sh -n installs '
+      'everything Mininet needs.' ),
+    ( r'ovs-vsctl|ovsdb-server|database connection failed',
+      'Open vSwitch is not running: sudo service openvswitch-switch '
+      'start (or systemctl start openvswitch-switch).' ),
+    ( r'RTNETLINK|File exists|Error creating interface pair|'
+      r'still has a link|Resource busy',
+      'Left-over state from an earlier run: stop the network, then '
+      'run sudo mn -c in a terminal and try again.' ),
+    ( r'Address already in use',
+      'Another program is using that port: start mn-gui with '
+      '--port 8081, or stop the other one.' ),
+    ( r'No module named .fcntl.|requires Linux|not supported on Windows',
+      'Starting a network needs Linux. Use WSL 2, Docker or a VM; '
+      'editing and checking the lab works here.' ),
+    ( r'Permission denied|Operation not permitted',
+      'Start mn-gui with sudo: sudo mn-gui --config <your lab file>.' ),
+    ( r'controller|6653|6633',
+      'If the lab uses controller: remote, check that your controller '
+      'is running and reachable on that address and port.' ),
+    ( r'timed out|timeout',
+      'The command did not finish in time. Run it in the Console tab '
+      'to see where it stops.' ),
+]
+
+
+def hintFor( text ):
+    "A suggested fix for an error message, or None"
+    for pattern, hint in TROUBLE:
+        if re.search( pattern, text, re.I ):
+            return hint
+    return None
 
 
 def isRoot():
@@ -199,12 +241,19 @@ class LabSession( object ):
         "Build and start the network; return startup command output"
         with self.lock:
             if self.net is not None:
-                raise GuiError( 'the network is already running', 409 )
+                raise GuiError( 'the network is already running', 409,
+                                'Press Stop first.' )
             if self.cfg is None:
-                raise GuiError( 'fix the configuration errors first', 409 )
+                raise GuiError( 'fix the configuration errors first', 409,
+                                'The problems are listed under the '
+                                'editor; Save once they are gone.' )
             if not isRoot():
-                raise GuiError( 'starting a network needs root: restart '
-                                'with sudo mn-gui', 403 )
+                command = ( 'sudo mn-gui --config %s' % self.path
+                            if self.path else 'sudo mn-gui' )
+                raise GuiError(
+                    'starting a network needs root', 403,
+                    'Stop mn-gui (Ctrl-C) and start it again with: %s'
+                    % command )
             net = self.netFactory( self.cfg )
             try:
                 net.start()
@@ -433,15 +482,20 @@ class Handler( BaseHTTPRequestHandler ):
         try:
             self.replyJson( 200, route( self.server.session, body or {} ) )
         except GuiError as e:
-            self.replyJson( e.status, { 'error': str( e ) } )
+            self.replyJson( e.status, { 'error': str( e ),
+                                        'hint': e.hint or
+                                        hintFor( str( e ) ) } )
         except ConfigError as e:
-            self.replyJson( 400, { 'error': 'configuration problem',
-                                   'issues': [ i.asDict()
-                                               for i in e.issues ] } )
+            self.replyJson( 400, {
+                'error': 'configuration problem',
+                'hint': 'Fix the problems listed under the editor, then '
+                        'try again.',
+                'issues': [ i.asDict() for i in e.issues ] } )
         except Exception as e:  # pylint: disable=broad-except
             from mininet.log import error  # pylint: disable=C0415
             error( 'mn-gui: %s failed: %r\n' % ( name, e ) )
-            self.replyJson( 500, { 'error': '%s failed: %s' % ( name, e ) } )
+            self.replyJson( 500, { 'error': '%s failed: %s' % ( name, e ),
+                                   'hint': hintFor( '%r' % ( e, ) ) } )
 
 
 def _validate( session, body ):

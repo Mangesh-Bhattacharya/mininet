@@ -11,6 +11,7 @@
   --bad: #b91c1c;
   --bad-bg: #fee2e2;
   --warn-bg: #fef3c7;
+  --warn-edge: #b45309;
   --host: #2563eb;
   --switch: #0f766e;
   --controller: #9333ea;
@@ -48,6 +49,7 @@
     --bad: #f87171;
     --bad-bg: #3a1717;
     --warn-bg: #3a2f10;
+    --warn-edge: #fbbf24;
     --host: #60a5fa;
     --switch: #2dd4bf;
     --controller: #c084fc;
@@ -316,6 +318,58 @@ table.matrix td.no { background: var(--bad-bg); color: var(--bad); }
 .guide-group dl { margin: 0; display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: 4px 12px; font-size: 0.85rem; }
 .guide-group dt code { color: var(--accent); }
 .guide-group dd { margin: 0; }
+
+/* Activity log: a drawer at the bottom that says what the GUI is
+   doing, what it ran, and what to try when something fails */
+body { padding-bottom: 248px; }
+body.activity-collapsed { padding-bottom: 52px; }
+.activity {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; flex-direction: column; max-height: 42vh;
+  background: var(--panel); border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.10);
+}
+.activity-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 20px; border-bottom: 1px solid var(--border);
+}
+.activity-head h2 { font-size: 0.85rem; }
+.activity-head .spacer { flex: 1; }
+.activity.collapsed .activity-log { display: none; }
+.activity-log {
+  list-style: none; margin: 0; padding: 8px 20px 12px;
+  overflow-y: auto; min-height: 150px;
+}
+.activity-log:empty::after {
+  content: "Nothing yet. Commands, results and errors appear here.";
+  color: var(--muted); font-size: 0.85rem;
+}
+.log {
+  display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px;
+  padding: 4px 0 4px 10px; border-left: 3px solid var(--border);
+  margin-bottom: 4px; font-size: 0.86rem;
+}
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log-title { font-weight: 550; overflow-wrap: anywhere; }
+.log-detail, .log-hint { grid-column: 2; margin: 2px 0 0; }
+.log-detail {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 10em; overflow-y: auto; color: var(--muted);
+}
+.log-hint { color: var(--text); background: var(--warn-bg);
+            border-radius: 6px; padding: 4px 8px; }
+.log.ok { border-left-color: var(--ok); }
+.log.cmd { border-left-color: var(--accent); }
+.log.cmd .log-title {
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 500;
+}
+.log.step { border-left-color: var(--accent); }
+.log.warn { border-left-color: var(--warn-edge); }
+.log.blocked { border-left-color: var(--warn-edge); }
+.log.error { border-left-color: var(--bad); }
+.log.error .log-title { color: var(--bad); }
+button.unavailable { opacity: 0.55; }
 
 dialog {
   border: 1px solid var(--border); border-radius: var(--radius);

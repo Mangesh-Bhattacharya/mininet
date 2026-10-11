@@ -226,6 +226,18 @@
     </section>
   </main>
 
+  <section id="activity" class="activity" aria-labelledby="activity-title">
+    <div class="activity-head">
+      <h2 id="activity-title">Activity</h2>
+      <span id="activity-state" class="small muted">Ready</span>
+      <span class="spacer"></span>
+      <button id="btn-activity-clear" class="small-btn" type="button">Clear</button>
+      <button id="btn-activity-toggle" class="small-btn" type="button"
+              aria-expanded="true" aria-controls="activity-log">Hide</button>
+    </div>
+    <ol id="activity-log" class="activity-log" aria-live="polite"></ol>
+  </section>
+
   <dialog id="info-dialog">
     <form method="dialog">
       <h2 id="info-title"></h2>

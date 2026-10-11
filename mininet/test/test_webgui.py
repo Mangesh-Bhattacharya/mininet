@@ -307,10 +307,34 @@ class NotRootTests( GuiTestCase ):
     root = False
 
     def testStartNeedsRoot( self ):
-        "403 with a hint"
+        "403, and the hint says exactly what to run"
         status, _, data = self.request( 'POST', '/api/start', {} )
         self.assertEqual( status, 403 )
-        self.assertIn( 'sudo', data[ 'error' ] )
+        self.assertIn( 'root', data[ 'error' ] )
+        self.assertIn( 'sudo mn-gui', data[ 'hint' ] )
+        self.assertIn( self.path, data[ 'hint' ] )
+
+
+class HintTests( unittest.TestCase ):
+    "Errors come with something to try"
+
+    def testKnownFailures( self ):
+        "The usual failures are recognised"
+        cases = [
+            ( 'ovs-vsctl: database connection failed', 'Open vSwitch' ),
+            ( 'Cannot find required executable ovs-vsctl', 'install.sh' ),
+            ( 'RTNETLINK answers: File exists', 'mn -c' ),
+            ( "No module named 'fcntl'", 'Linux' ),
+            ( 'OSError: [Errno 98] Address already in use', '--port' ) ]
+        for message, expected in cases:
+            with self.subTest( message=message ):
+                hint = webgui.hintFor( message )
+                self.assertIsNotNone( hint, message )
+                self.assertIn( expected, hint )
+
+    def testUnknownFailure( self ):
+        "An error nobody anticipated gets no invented advice"
+        self.assertIsNone( webgui.hintFor( 'something odd happened' ) )
 
 
 class InvalidConfigTests( GuiTestCase ):

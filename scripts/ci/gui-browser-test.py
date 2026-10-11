@@ -41,6 +41,9 @@ def check_config_and_validation( page, outdir, suffix ):
         "( '#graph g[data-kind=host]' ).length >= 3" )
     expect( page.locator( '#editor' ) ).to_have_value(
         re.compile( 'two-switch-lab' ) )
+    # The activity log says what the GUI did, from the first moment
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'Connected to mn-gui' )
     shot( page, outdir, 'gui-overview%s.png' % suffix )
 
     original = page.locator( '#editor' ).input_value()
@@ -202,9 +205,17 @@ def check_network( page, outdir, suffix ):
         "() => document.querySelectorAll"
         "( '#graph .halo[visibility=visible]' ).length >= 3" )
 
+    # Every command the lab ran is in the activity log, not only in the
+    # console tab
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'The network is running' )
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'ip -brief address' )
+
     page.locator( '#btn-pingall' ).click()
     expect( page.locator( '#ping-result' ) ).to_contain_text(
         'All hosts can reach each other', timeout=TIMEOUT )
+    expect( page.locator( '#activity-log' ) ).to_contain_text( 'Ping all' )
     expect( page.locator( '#ping-result td.no' ) ).to_have_count( 0 )
     expect( page.locator( '#ping-result' ) ).not_to_contain_text( 'null' )
     expect( page.locator( '#btn-pingall' ) ).to_be_enabled()
