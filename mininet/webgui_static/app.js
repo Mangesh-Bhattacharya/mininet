@@ -247,14 +247,11 @@ async function refreshStatus() {
   else { pill.textContent = 'Stopped'; pill.className = 'pill'; }
   // These stay clickable even when they cannot work, so that a click
   // says why instead of doing nothing at all
+  // The server knows this machine: on Windows or macOS the answer is
+  // not "use sudo", it is "run the lab in WSL, Docker or a VM"
   const why = status.running ? 'The network is already running - press Stop first.'
     : !status.name ? 'The configuration has errors: fix them under the editor first.'
-      : !status.root ? 'mn-gui is running without root, so it can edit labs but not ' +
-        'start them. Stop it and start it again with: sudo mn-gui --config ' +
-        (status.path || 'lab.yaml') +
-        (status.sudoFree ? '' : ' - or, to stop typing sudo altogether, ask an ' +
-          'administrator to run once: sudo util/nonroot-setup.sh --user ' +
-          (status.user || 'youruser'))
+      : status.blocked ? status.blocked + '. ' + (status.blockedHint || '')
         : '';
   if (why) unavailable($('btn-start'), why); else available($('btn-start'));
   $('btn-start').disabled = false;
@@ -1207,13 +1204,12 @@ async function start() {
     logEvent('ok', 'Connected to mn-gui' +
       (state.status.version ? ' (Mininet ' + state.status.version + ')' : ''),
       state.status.path);
-    if (!state.status.root) {
-      const message = 'Edit-only mode: mn-gui is not running as root, so you ' +
-        'can edit and validate but not start networks. Restart it with sudo.';
-      notify(message);
-      logEvent('warn', 'Edit-only mode: this mn-gui cannot start networks',
-        null, 'Stop it and start it again with: sudo mn-gui --config ' +
-        (state.status.path || 'lab.yaml'));
+    if (state.status.blocked) {
+      notify('Edit-only mode: ' + state.status.blocked + ', so you can edit ' +
+             'and check labs here but not run them. ' +
+             (state.status.blockedHint || ''));
+      logEvent('warn', 'Edit-only mode: ' + state.status.blocked,
+               null, state.status.blockedHint);
     }
   } catch (e) {
     notify(e.message, true);

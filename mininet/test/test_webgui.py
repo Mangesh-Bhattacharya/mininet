@@ -307,12 +307,37 @@ class NotRootTests( GuiTestCase ):
     root = False
 
     def testStartNeedsRoot( self ):
-        "403, and the hint says exactly what to run"
-        status, _, data = self.request( 'POST', '/api/start', {} )
+        "On Linux: 403, and the hint says exactly what to run"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ):
+            status, _, data = self.request( 'POST', '/api/start', {} )
         self.assertEqual( status, 403 )
-        self.assertIn( 'root', data[ 'error' ] )
+        self.assertIn( 'not running as root', data[ 'error' ] )
         self.assertIn( 'sudo mn-gui', data[ 'hint' ] )
         self.assertIn( self.path, data[ 'hint' ] )
+        self.assertIn( 'nonroot-setup.sh', data[ 'hint' ] )
+
+    def testStartOffLinuxDoesNotSaySudo( self ):
+        "Telling a Windows user to run sudo would be useless advice"
+        for platform, expected in ( ( 'win32', 'WSL 2' ),
+                                    ( 'darwin', 'container' ) ):
+            with self.subTest( platform=platform ):
+                with mock.patch.object( webgui.elevate, 'isLinux',
+                                        return_value=False ), \
+                        mock.patch.object( webgui.elevate.sys, 'platform',
+                                           platform ):
+                    _s, _h, data = self.request( 'POST', '/api/start', {} )
+                self.assertIn( 'no Linux kernel', data[ 'error' ] )
+                self.assertNotIn( 'sudo mn-gui', data[ 'hint' ] )
+                self.assertIn( expected, data[ 'hint' ] )
+
+    def testStatusSaysWhatIsInTheWay( self ):
+        "The GUI gets the same reason without having to guess"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ):
+            _s, _h, data = self.request( 'GET', '/api/status' )
+        self.assertIn( 'not running as root', data[ 'blocked' ] )
+        self.assertIn( 'sudo mn-gui', data[ 'blockedHint' ] )
 
 
 class HintTests( unittest.TestCase ):

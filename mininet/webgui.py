@@ -114,6 +114,14 @@ TROUBLE = [
 ]
 
 
+def startBlocker( path=None ):
+    """Why can this machine not start a network? ( reason, hint ), or
+       ( None, None ) when nothing is in the way."""
+    action = ( 'Stop it (Ctrl-C) and start it again with: sudo mn-gui'
+               '%s' % ( ' --config %s' % path if path else '' ) )
+    return elevate.blocker( action, path, what='mn-gui' )
+
+
 def hintFor( text ):
     "A suggested fix for an error message, or None"
     for pattern, hint in TROUBLE:
@@ -247,14 +255,10 @@ class LabSession( object ):
                 raise GuiError( 'fix the configuration errors first', 409,
                                 'The problems are listed under the '
                                 'editor; Save once they are gone.' )
-            if not isRoot():
-                command = ( 'sudo mn-gui --config %s' % self.path
-                            if self.path else 'sudo mn-gui' )
-                raise GuiError(
-                    'starting a network needs root', 403,
-                    'Stop mn-gui (Ctrl-C) and start it again with: %s'
-                    ' - or, to stop typing sudo at all, %s'
-                    % ( command, elevate.setupHint() ) )
+            reason, hint = startBlocker( self.path )
+            if reason:
+                raise GuiError( 'cannot start a network here: %s' % reason,
+                                403, hint )
             net = self.netFactory( self.cfg )
             try:
                 net.start()
@@ -349,10 +353,12 @@ class LabSession( object ):
             # and macOS, where the GUI can edit labs but not start them
             hosts = ( [ h[ 'name' ] for h in labconfig.expand( cfg )[ 0 ] ]
                       if cfg else [] )
+        blocked, blockedHint = startBlocker( self.path )
         return {
             'running': self.running(), 'root': isRoot(),
             'version': mininetVersion(), 'user': elevate.userName(),
             'sudoFree': os.path.exists( elevate.SUDOERS ),
+            'blocked': blocked, 'blockedHint': blockedHint,
             'path': self.path, 'language': self.lang.title,
             'format': self.lang.key, 'editable': self.editable(),
             'name': cfg[ 'name' ] if cfg else None,

@@ -38,6 +38,11 @@ def isRoot():
     return hasattr( os, 'geteuid' ) and os.geteuid() == 0
 
 
+def isLinux():
+    "Is this a Linux kernel, the only thing Mininet can build networks on?"
+    return sys.platform.startswith( 'linux' )
+
+
 def userName():
     "The name of the user running this command"
     for name in ( 'SUDO_USER', 'USER', 'LOGNAME' ):
@@ -53,6 +58,43 @@ def userName():
 def setupHint():
     "What to tell someone who needs root and hasn't set this up"
     return SETUP_HINT % userName()
+
+
+# Where to run a lab when this computer cannot, by platform
+ELSEWHERE = {
+    'win32': ( 'Windows has no Linux kernel',
+               'Design and check labs here, then run them in WSL 2 '
+               '(wsl sudo mn-config run %(file)s), in Docker Desktop, '
+               'or in a VM - docs/install/windows.md.' ),
+    'darwin': ( 'macOS has no Linux kernel',
+                'Design and check labs here, then run them in a '
+                'container (scripts/mininet-docker.sh) or a Linux VM '
+                '- docs/install/macos.md.' ),
+}
+OTHER_PLATFORM = ( 'this computer is not running Linux',
+                   'Mininet builds networks with Linux network '
+                   'namespaces: run the lab in Docker or a Linux VM.' )
+
+
+def blocker( action=None, path=None, what='this command' ):
+    """Why can this machine not start a network, and what should the
+       person do about it? Returns ( reason, hint ), or ( None, None )
+       when nothing is in the way.
+
+       Telling a Windows user to type sudo would be useless advice, so
+       the answer depends on the machine. On Linux, action is the
+       sentence to tell the reader, e.g. "Run it with: sudo mn ..."."""
+    if not isLinux():
+        reason, hint = ELSEWHERE.get( sys.platform, OTHER_PLATFORM )
+        if '%(file)s' in hint:
+            hint = hint % { 'file': os.path.basename( path ) if path
+                            else 'lab.yaml' }
+        return reason, hint
+    if not isRoot():
+        return ( '%s is not running as root' % what,
+                 '%s - or, to stop typing sudo at all, %s'
+                 % ( action or 'Run it with sudo', setupHint() ) )
+    return None, None
 
 
 def commandPath( argv ):
