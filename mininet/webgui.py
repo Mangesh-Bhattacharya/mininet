@@ -643,9 +643,13 @@ def main( argv=None ):
               'port and knows the token can run commands as root.\n'
               '*** In Docker, publish it to 127.0.0.1 only '
               '(-p 127.0.0.1:%d:%d).\n' % ( args.host, port, port ) )
-    if not isRoot():
-        warn( '*** Not running as root: you can edit and validate '
-              'configurations, but not start networks (use sudo).\n' )
+    # The same answer the GUI gives, so the terminal never tells a
+    # Windows or macOS user to type sudo
+    reason, hint = startBlocker( args.config )
+    if reason:
+        warn( '*** Edit-only mode: %s, so you can edit and validate '
+              'configurations but not start networks.\n*** %s\n'
+              % ( reason, hint ) )
     info( '*** Mininet GUI for %s\n' % session.path )
     info( '*** Open this URL in your browser (it contains your access '
           'token):\n\n    http://localhost:%d/#token=%s\n\n' %

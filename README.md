@@ -11,6 +11,7 @@
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml"><img alt="docker" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml/badge.svg"></a>
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml"><img alt="launchers" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml/badge.svg"></a>
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml"><img alt="security" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml/badge.svg"></a>
+  <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security-audit.yml"><img alt="security-audit" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security-audit.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: BSD-3-Clause" src="https://img.shields.io/badge/license-BSD--3--Clause-blue.svg"></a>
 </p>
 
@@ -30,11 +31,16 @@ student or first-time user needs today:
 
 - **Runs everywhere** — native Ubuntu/Debian, Windows (WSL 2 or Docker),
   macOS (Intel and Apple Silicon), any VM, or a single `docker run`.
-- **A browser GUI** — draw, edit, run and test a network from any browser.
+- **A browser GUI** — draw, edit, run and test a network from any browser,
+  with an activity log that explains every command and every error.
 - **Lab files in the language you know** — YAML, JSON, Python, C, C++, C#,
   Java, Ruby or COBOL, with checks that explain every mistake.
-- **Secure and patched weekly** — signed, scanned container images and
-  automated dependency updates.
+- **No administrator account needed** — one setup command lets a student
+  run Mininet without ever typing `sudo`.
+- **Secure, patched weekly, audited fortnightly** — signed and scanned
+  container images, automatic dependency updates, and a malware and
+  [MITRE ATT&CK](docs/security/attack-coverage.md) audit that opens its
+  own issue when it finds something.
 
 ---
 
@@ -175,21 +181,33 @@ New to Mininet? Start with [docs/getting-started.md](docs/getting-started.md).
 ### Browser GUI (`mn-gui`)
 
 ```bash
-sudo mn-gui --config lab.yaml          # then open the URL it prints
+mn-gui --config lab.yaml               # then open the URL it prints
 ```
+
+(`sudo mn-gui` unless this machine has been [set up to go without
+it](docs/install/without-sudo.md). Without root the GUI still opens —
+it edits and checks labs, and says where to run them.)
 
 | | |
 |---|---|
 | <img src="docs/images/gui-validation.png" alt="Editing the configuration: two mistakes are reported with hints and Save is disabled"> | <img src="docs/images/gui-console.png" alt="The console tab: a ping from h1 to h3 and an iperf bandwidth measurement"> |
 | **Edit with instant checking** — mistakes are listed with hints, and Save stays disabled until the file is valid. | **Run commands on any host** and measure bandwidth with iperf. |
 
-- A MiniEdit-style topology editor: palette, device icons, drag to
-  place, click two nodes to link, properties for addresses and link
-  speeds - saved straight into your lab file
+- A MiniEdit-style topology editor: **File / Edit / Run / Help** menus, a
+  tool palette, the original device icons, drag to place, click two
+  nodes to link, properties for addresses and link speeds — saved
+  straight into your lab file
+- Hosts, OpenFlow switches, **legacy switches** (no controller) and
+  **legacy routers**, as in MiniEdit
 - Start / stop the network, ping matrix, node console, iperf
+- An **Activity** drawer along the bottom: every command the GUI runs,
+  every result, and a suggested fix for every error. A button that
+  cannot work yet says why instead of doing nothing
 - A **Guide** tab listing every setting as *edit freely*, *advanced* or *do not edit*
 - Light and dark mode; works from the browser on your Windows or Mac
-  when Mininet runs in Docker, WSL or a VM
+  when Mininet runs in Docker, WSL or a VM — and opens in *edit-only
+  mode* on a machine with no Linux kernel, telling you where to run the
+  lab instead of telling you to type `sudo`
 - Locked down by default: listens on `127.0.0.1` only, random access
   token, DNS-rebinding and CSRF protection, strict Content-Security-Policy,
   no external scripts
@@ -278,6 +296,7 @@ Everything below is tested automatically on every change and every week:
 | Ubuntu 22.04/24.04/26.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
 | Docker image, amd64 and arm64 | networks, lab configs, the GUI, vulnerability scan |
 | Browser GUI | driven in Chromium against a real network, light and dark mode; fails on any browser console error |
+| Running without sudo | a plain user is refused, set up, runs a network with no password, and is refused again once the setup is removed |
 | Lab configs | all nine languages build and run a real network |
 | Debian package | built, installed and used to run a network |
 | OpenFlow reference switch | built and run on gcc 13 (Ubuntu 24.04) and gcc 15 (Ubuntu 26.04) |
@@ -294,7 +313,15 @@ Linux: WSL 2, the Linux VM behind Docker, or a virtual machine.
 - **Patched weekly, automatically.** Every Monday the images are rebuilt
   with all Ubuntu security updates, and Dependabot proposes updates for
   every GitHub Action, the base image and Python package. Security fixes
-  are proposed immediately.
+  are proposed immediately, and an update whose tests pass merges itself
+  — nothing waits for someone to notice it.
+- **Audited every two weeks.** On the 1st and the 15th the project scans
+  itself end to end: ClamAV over the source tree *and* the published
+  image's filesystem, OSV for vulnerable dependencies, gitleaks over the
+  whole git history, and Trivy against the image. Each control is mapped
+  to the [MITRE ATT&CK](docs/security/attack-coverage.md) technique it
+  defends against. A finding opens an issue by itself; so does a
+  scheduled build that fails.
 - **Scanned and signed.** Images with a fixable high or critical
   vulnerability are never published. Published images are signed with
   Sigstore cosign and carry an SBOM and build provenance.
@@ -323,7 +350,7 @@ privately — see [SECURITY.md](SECURITY.md).
 |-------|---|
 | Install | [Linux](docs/install/linux.md) · [Windows](docs/install/windows.md) · [macOS](docs/install/macos.md) · [Docker](docs/install/docker.md) · [Virtual machines](docs/install/virtual-machines.md) |
 | Use | [Getting started](docs/getting-started.md) · [Lab configuration files](docs/configuration.md) · [Browser GUI](docs/gui.md) · [Troubleshooting](docs/troubleshooting.md) |
-| Security | [Security policy and patching](SECURITY.md) |
+| Security | [Security policy and patching](SECURITY.md) · [Controls mapped to MITRE ATT&CK](docs/security/attack-coverage.md) · [Running without sudo](docs/install/without-sudo.md) |
 | Research | [Mininet-AI: AI controllers, LLM network agents, RL environments and tutoring on Mininet](docs/research/mininet-ai.md) |
 | Upstream | [mininet.org](http://mininet.org) · [Walkthrough](http://mininet.org/walkthrough/) · [Python API introduction](https://github.com/mininet/mininet/wiki/Introduction-to-Mininet) · [FAQ](https://github.com/mininet/mininet/wiki/FAQ) |
 

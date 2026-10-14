@@ -63,6 +63,17 @@ def check_config_and_validation( page, outdir, suffix ):
     expect( page.locator( '#valid-state' ) ).to_have_text( 'Valid' )
     expect( page.locator( '#issues li' ) ).to_have_count( 0 )
 
+    # The console stays usable while the network is stopped: you can
+    # write a command, and pressing Run says why it cannot run yet
+    # instead of doing nothing at all
+    page.locator( '#tab-console' ).click()
+    expect( page.locator( '#exec-cmd' ) ).to_be_enabled()
+    page.locator( '#exec-cmd' ).fill( 'ip addr' )
+    page.locator( '#exec-form button[type=submit]' ).click()
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'The network is not running' )
+    page.locator( '#exec-cmd' ).fill( '' )
+
     page.locator( '#tab-guide' ).click()
     expect( page.locator( '#guide' ) ).to_contain_text( 'Do not edit' )
     shot( page, outdir, 'gui-guide%s.png' % suffix )
