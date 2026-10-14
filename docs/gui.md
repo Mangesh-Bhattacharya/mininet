@@ -20,14 +20,22 @@ machine hosting that container or VM.
 - **Start / Stop / Ping all**: run the network and see which hosts reach
   each other as a matrix.
 - **Console**: run commands on any node (`ip addr`, `ping`, `curl`...)
-  and measure bandwidth with iperf.
+  and measure bandwidth with iperf. You can write a command before the
+  network starts; pressing **Run** too early says so rather than
+  ignoring you.
 - **Activity log** (the strip along the bottom): every command the lab
   runs, with its output, and every error - each one with a line saying
   what to try. A button that cannot do its job says so there instead of
-  doing nothing: press **Run** in a GUI started without `sudo` and the
-  log tells you the exact command to restart it with.
+  doing nothing, and the answer fits the machine: on Linux without
+  `sudo` it gives the exact command to restart with, and on Windows or
+  macOS - where there is no Linux kernel to build a network on - it
+  points at WSL 2, Docker or a VM.
 - **Guide**: every setting, grouped by *edit freely*, *advanced* and *do
   not edit*.
+- **One screen**: on a window with room for it nothing scrolls away -
+  the canvas and the file take the height that is left over, and each
+  panel scrolls inside itself. Smaller windows fall back to an ordinary
+  scrolling page.
 
 ## A quick tour
 
