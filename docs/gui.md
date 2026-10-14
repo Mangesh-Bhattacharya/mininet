@@ -20,14 +20,22 @@ machine hosting that container or VM.
 - **Start / Stop / Ping all**: run the network and see which hosts reach
   each other as a matrix.
 - **Console**: run commands on any node (`ip addr`, `ping`, `curl`...)
-  and measure bandwidth with iperf.
+  and measure bandwidth with iperf. You can write a command before the
+  network starts; pressing **Run** too early says so rather than
+  ignoring you.
 - **Activity log** (the strip along the bottom): every command the lab
   runs, with its output, and every error - each one with a line saying
   what to try. A button that cannot do its job says so there instead of
-  doing nothing: press **Run** in a GUI started without `sudo` and the
-  log tells you the exact command to restart it with.
+  doing nothing, and the answer fits the machine: on Linux without
+  `sudo` it gives the exact command to restart with, and on Windows or
+  macOS - where there is no Linux kernel to build a network on - it
+  points at WSL 2, Docker or a VM.
 - **Guide**: every setting, grouped by *edit freely*, *advanced* and *do
   not edit*.
+- **One screen**: on a window with room for it nothing scrolls away -
+  the canvas and the file take the height that is left over, and each
+  panel scrolls inside itself. Smaller windows fall back to an ordinary
+  scrolling page.
 
 ## A quick tour
 
@@ -40,29 +48,38 @@ editor holds the file itself.
 
 ![Topology and configuration editor](images/gui-overview.png)
 
-**2. Edit it.** Every change is checked as you type. Mistakes are listed
+**2. Draw it.** The palette places devices, clicking two of them makes a
+link, and the **File / Edit / Run / Help** menus hold the rest: new lab,
+save, undo, auto-arrange, export the topology as an SVG.
+
+![The File menu open over the topology editor](images/gui-menu.png)
+
+**3. Edit it.** Every change is checked as you type. Mistakes are listed
 with hints, and Save stays disabled until the file is valid.
 
 ![Validation errors with hints](images/gui-validation.png)
 
-**3. Start the network and press Ping all.** Hosts turn green when the
+**4. Start the network and press Ping all.** Hosts turn green when the
 network runs, and the matrix shows which host can reach which.
 
 ![Ping matrix of a running network](images/gui-pingall.png)
 
-**4. Use the console.** Run any command on any host, or measure bandwidth
+**5. Use the console.** Run any command on any host, or measure bandwidth
 with iperf.
 
 ![Console with ping and iperf output](images/gui-console.png)
 
-**5. Not sure what to change?** The Guide tab lists every setting as
+**6. Not sure what to change?** The Guide tab lists every setting as
 *edit freely*, *advanced* or *do not edit*.
 
 ![The Guide tab](images/gui-guide.png)
 
-Dark mode follows your system setting:
+Dark mode follows your system setting. The same two screens again, in
+dark:
 
-![The GUI in dark mode](images/gui-pingall-dark.png)
+![The console tab in dark mode](images/gui-console-dark.png)
+
+![The Guide tab in dark mode](images/gui-guide-dark.png)
 
 Configs written as programs (Python, C, C++, C#, Java, Ruby, COBOL) are
 shown read-only: edit them in your editor, then press **Reload from

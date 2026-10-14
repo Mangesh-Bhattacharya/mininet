@@ -1,63 +1,40 @@
 <h1 align="center">Mininet</h1>
 
 <p align="center">
-  <strong>Emulate a whole network on your laptop — from the command line or your browser —<br>
-  on Linux, Windows, macOS, virtual machines and Docker.</strong>
+  A network of Linux hosts and OpenFlow switches, running on one machine.
 </p>
 
 <p align="center">
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/tests.yml"><img alt="tests" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/tests.yml/badge.svg"></a>
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/install-matrix.yml"><img alt="install-matrix" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/install-matrix.yml/badge.svg"></a>
   <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml"><img alt="docker" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/docker.yml/badge.svg"></a>
-  <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml"><img alt="launchers" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/launchers.yml/badge.svg"></a>
-  <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml"><img alt="security" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security.yml/badge.svg"></a>
+  <a href="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security-audit.yml"><img alt="security-audit" src="https://github.com/Mangesh-Bhattacharya/mininet/actions/workflows/security-audit.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: BSD-3-Clause" src="https://img.shields.io/badge/license-BSD--3--Clause-blue.svg"></a>
 </p>
 
 <p align="center">
-  <img src="docs/images/gui-pingall.png" alt="The Mininet Lab browser GUI: a running network with three hosts and two switches, and a ping matrix showing every host can reach every other" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/gui-pingall-dark.png">
+    <img src="docs/images/gui-pingall.png" width="900"
+         alt="The browser GUI: four hosts and two switches drawn on a canvas, with a matrix on the right showing every host can reach every other host">
+  </picture>
 </p>
 
-Mininet creates a realistic virtual network — hosts, switches, links and
-an SDN controller — using real Linux networking, in seconds, on one
-machine. It is the standard tool for learning and prototyping
-Software-Defined Networking and OpenFlow.
+Each host is a Linux network namespace with its own interfaces and
+routing table, so `ping`, `tcpdump` and `iperf` behave the way they do
+on separate machines. A small network starts in about a second and
+leaves nothing behind when you quit. It is used for teaching
+networking, for trying SDN and OpenFlow ideas, and for class labs.
 
-This is a **maintained, cross-platform edition** of
-[mininet/mininet](https://github.com/mininet/mininet) (2.3.1b4). It keeps
-Mininet's Python API and `mn` command fully compatible, and adds what a
-student or first-time user needs today:
+`mn`, the Python API and existing tutorials are unchanged here. What
+this fork adds: it installs on Windows and macOS as well as Linux, it
+has a browser GUI, a lab is a file you can check into git, and students
+do not need an administrator account.
 
-- **Runs everywhere** — native Ubuntu/Debian, Windows (WSL 2 or Docker),
-  macOS (Intel and Apple Silicon), any VM, or a single `docker run`.
-- **A browser GUI** — draw, edit, run and test a network from any browser.
-- **Lab files in the language you know** — YAML, JSON, Python, C, C++, C#,
-  Java, Ruby or COBOL, with checks that explain every mistake.
-- **Secure and patched weekly** — signed, scanned container images and
-  automated dependency updates.
+## Install
 
----
-
-## Contents
-
-- [Quick start](#quick-start)
-- [Command line and browser GUI](#command-line-and-browser-gui)
-- [Lab configuration files](#lab-configuration-files)
-- [What's included](#whats-included)
-- [Supported platforms](#supported-platforms)
-- [Security and updates](#security-and-updates)
-- [Documentation](#documentation)
-- [Contributing, credits and license](#contributing-credits-and-license)
-
----
-
-## Quick start
-
-### Any computer with Docker — nothing else to install
-
-Works on Windows, macOS and Linux (amd64 and arm64). Install
-[Docker Desktop](https://docs.docker.com/get-docker/) (or OrbStack/Colima
-on macOS, Docker Engine on Linux), then:
+Docker, on any machine. Install
+[Docker Desktop](https://docs.docker.com/get-docker/), then:
 
 ```bash
 docker run --rm -it --privileged ghcr.io/mangesh-bhattacharya/mininet
@@ -68,145 +45,91 @@ root@mininet:/workspace# mn --test pingall
 *** Results: 0% dropped (2/2 received)
 ```
 
-For the **browser GUI**, publish its port (to your own machine only) and
-open the `http://localhost:8080/#token=...` link it prints:
-
-```bash
-docker run --rm -it --privileged -p 127.0.0.1:8080:8080 -v "$PWD:/workspace" \
-  ghcr.io/mangesh-bhattacharya/mininet mn-gui --config /workspace/lab.yaml
-```
-
-(Windows PowerShell: use `${PWD}` and put the command on one line.)
-`lab.yaml` is created in your current folder the first time. More in
-[docs/install/docker.md](docs/install/docker.md).
-
-### Ubuntu or Debian — native install
-
-Ubuntu 22.04, 24.04 and 26.04, Debian 12/13:
+Ubuntu 22.04, 24.04, 26.04 or Debian 12, 13:
 
 ```bash
 git clone https://github.com/Mangesh-Bhattacharya/mininet.git
 cd mininet
-util/install.sh -nv            # installs Mininet and Open vSwitch
+util/install.sh -nv
 sudo mn --test pingall
 ```
 
-Prefer a package? `dpkg-buildpackage -b` builds a `.deb`
-([docs/install/linux.md](docs/install/linux.md#install-as-a-debian-package-deb)).
+On Windows, use the Docker command above, or
+`.\scripts\mininet-docker.ps1 -Gui` from a clone. For the full thing,
+install Ubuntu under WSL 2 and follow the Linux steps
+([docs/install/windows.md](docs/install/windows.md)). On macOS the same
+Docker command works on Intel and Apple Silicon, or use a VM
+([docs/install/macos.md](docs/install/macos.md)). In a clone,
+`vagrant up && vagrant ssh` works with VirtualBox, VMware, Parallels,
+Hyper-V and libvirt.
 
-### Windows 10/11
+`mn-doctor` reports what is missing and prints a command that will
+work, including on Windows and macOS where Mininet itself cannot run.
 
-| Option | When to choose it | How |
-|--------|-------------------|-----|
-| **Docker Desktop** | quickest | the `docker run` above, or `.\scripts\mininet-docker.ps1 -Gui` from a clone |
-| **WSL 2** | full Linux experience, GUI tools, best speed | install Ubuntu in WSL, then the Linux steps above |
-| **Virtual machine** | isolated, classroom images | `vagrant up` (below) |
+## A first lab
 
-Details: [docs/install/windows.md](docs/install/windows.md).
-
-### macOS (Intel and Apple Silicon)
-
-Use the `docker run` above, or a Linux VM with Multipass/UTM/Vagrant —
-[docs/install/macos.md](docs/install/macos.md).
-
-### Without being an administrator
-
-Mininet needs root to build networks, but the person using it does not
-have to be an admin, or type `sudo` at all. `util/install.sh` offers
-this during installation, and you can choose it later:
+A lab is one file:
 
 ```bash
-sudo util/nonroot-setup.sh --user alice   # once, by an administrator
-mn --test pingall                         # then, as alice
-```
-
-It grants that user root through Mininet, like the `docker` group does
-— [the trade-off, and how to undo it](docs/install/without-sudo.md).
-
-### Design labs without Linux
-
-Running a network needs a Linux kernel, but writing, checking and
-drawing one does not. On Windows or macOS itself:
-
-```bash
-python3 -m pip install ".[yaml]"   # Windows: py -m pip install ".[yaml]"
 mn-config init --lang yaml -o lab.yaml
-mn-config validate lab.yaml
-mn-gui --config lab.yaml           # the topology editor, in your browser
+sudo mn-gui --config lab.yaml
 ```
 
-Then run `lab.yaml` in Docker, WSL 2 or a VM.
+`mn-gui` prints a URL containing an access token. Open it. The topology
+is on the left, the file on the right, and editing either one updates
+the other.
 
-### Any virtual machine
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/gui-overview-dark.png">
+  <img src="docs/images/gui-overview.png"
+       alt="The GUI with a topology of three hosts and two switches on the left and the YAML file that describes it on the right">
+</picture>
 
-```bash
-git clone https://github.com/Mangesh-Bhattacharya/mininet.git && cd mininet
-vagrant up && vagrant ssh      # VirtualBox, VMware, Parallels, Hyper-V, libvirt
-sudo mn --test pingall
-```
+The palette is MiniEdit's: select, host, switch, legacy switch, legacy
+router, link, controller, delete. Drop a device on the canvas, click two
+devices to link them, set addresses and link speeds underneath. Changes
+go into the lab file as you make them.
 
-Multipass, cloud instances and building a VM image for a class:
-[docs/install/virtual-machines.md](docs/install/virtual-machines.md).
+<img src="docs/images/gui-editor.png"
+     alt="Adding a fourth host, linking it to a switch, and giving it an IP address in the properties form below the canvas">
 
-### Is my machine ready?
+The file is checked while you type. Problems are listed with a hint
+each, and Save stays off until they are fixed.
 
-`sudo mn-doctor` checks everything Mininet needs and tells you what to
-fix — or, on Windows and macOS, which of the options above to use.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/gui-validation-dark.png">
+  <img src="docs/images/gui-validation.png"
+       alt="Two problems listed under the editor, each with a hint, and a disabled Save button">
+</picture>
 
----
+Run starts the network. Ping all fills in a matrix of which host reaches
+which, and the Console tab gives you a shell on any host or an iperf
+measurement between two of them.
 
-## Command line and browser GUI
+The strip along the bottom is the activity log: every command the lab
+ran, its output, and a suggested fix for each error. Pressing a button
+that cannot work says why instead of doing nothing, and the reason
+depends on the machine. On Windows it points at WSL 2 or Docker rather
+than suggesting `sudo`, which would not help there.
 
-### Command line
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/gui-activity-dark.png">
+  <img src="docs/images/gui-activity.png"
+       alt="The activity drawer showing 'Run: nothing happened' with the suggestion 'The network is not running: press Run first.'">
+</picture>
 
-The classic `mn` command is unchanged, so every tutorial and course that
-uses Mininet works as before:
+The GUI listens on `127.0.0.1` only, requires the token it printed, and
+loads nothing from the internet. [docs/gui.md](docs/gui.md) covers the
+rest, including reaching it over SSH on a VM.
 
-```bash
-sudo mn                                           # 2 hosts, 1 switch, interactive CLI
-sudo mn --topo tree,depth=2,fanout=3 --test pingall
-sudo mn --link tc,bw=10,delay=5ms                 # shaped links
-mininet> h1 ping -c3 h2
-mininet> iperf h1 h2
-```
+## Lab files
 
-New to Mininet? Start with [docs/getting-started.md](docs/getting-started.md).
-
-### Browser GUI (`mn-gui`)
-
-```bash
-sudo mn-gui --config lab.yaml          # then open the URL it prints
-```
-
-| | |
-|---|---|
-| <img src="docs/images/gui-validation.png" alt="Editing the configuration: two mistakes are reported with hints and Save is disabled"> | <img src="docs/images/gui-console.png" alt="The console tab: a ping from h1 to h3 and an iperf bandwidth measurement"> |
-| **Edit with instant checking** — mistakes are listed with hints, and Save stays disabled until the file is valid. | **Run commands on any host** and measure bandwidth with iperf. |
-
-- A MiniEdit-style topology editor: palette, device icons, drag to
-  place, click two nodes to link, properties for addresses and link
-  speeds - saved straight into your lab file
-- Start / stop the network, ping matrix, node console, iperf
-- A **Guide** tab listing every setting as *edit freely*, *advanced* or *do not edit*
-- Light and dark mode; works from the browser on your Windows or Mac
-  when Mininet runs in Docker, WSL or a VM
-- Locked down by default: listens on `127.0.0.1` only, random access
-  token, DNS-rebinding and CSRF protection, strict Content-Security-Policy,
-  no external scripts
-
-Full guide, including VMs over SSH: [docs/gui.md](docs/gui.md).
-
----
-
-## Lab configuration files
-
-Describe a network once, check it, run it — from the command line or the
-GUI:
+The file the GUI edits is plain text, and the command line does the same
+work:
 
 ```bash
-mn-config init --lang yaml         # write a commented starter file (or c, java, cobol...)
-mn-config validate lab.yaml        # check it — no root needed
-sudo mn-config run lab.yaml        # start it, run its commands and tests, open the CLI
+mn-config validate lab.yaml     # check it, no root needed
+sudo mn-config run lab.yaml     # start it, run its tests, open the CLI
 ```
 
 ```yaml
@@ -226,15 +149,8 @@ links:
 tests: [pingall]
 ```
 
-| Language | File | Language | File | Language | File |
-|----------|------|----------|------|----------|------|
-| **YAML** (recommended) | `lab.yaml` | Python | `lab.py` | Java | `Lab.java` |
-| JSON | `lab.json` | C | `lab.c` | Ruby | `lab.rb` |
-| C# | `lab.cs` | C++ | `lab.cpp` | COBOL | `lab.cob` |
-
-Every language produces the same configuration and passes the same
-checks. Program configs are compiled and run for you — as your own user,
-never as root. Mistakes come back all at once, with a hint:
+Settings are marked `[EDIT]`, `[ADVANCED]` or `[FIXED]`, so it is clear
+which ones are safe to change. Problems come back together, with hints:
 
 ```text
 $ mn-config validate lab.yaml
@@ -245,65 +161,80 @@ Configuration problems:
     hint: define it under hosts or switches first
 ```
 
-`run` exits non-zero when a test fails, so `sudo mn-config run lab.yaml
---no-cli` works in scripts and autograders. What to edit and what not to,
-every setting, and each language: [docs/configuration.md](docs/configuration.md).
+The same lab can be written in JSON, Python, C, C++, C#, Java, Ruby or
+COBOL (`mn-config init --lang java`). They produce the same network and
+pass the same checks; program configs are compiled and run as you, never
+as root. `run` exits non-zero when a test fails, so `mn-config run
+lab.yaml --no-cli` works in a script or an autograder. Full reference:
+[docs/configuration.md](docs/configuration.md).
 
----
+Writing and checking a lab does not need Linux. `pip install ".[yaml]"`
+on Windows or macOS installs `mn-config` and `mn-gui`; the GUI opens in
+edit-only mode and says where to run the finished lab.
 
-## What's included
+## Running without root
 
-| Tool | What it does |
-|------|--------------|
-| `mn` | Mininet's launcher and CLI (unchanged) |
-| Python API | `from mininet.net import Mininet` — build topologies and experiments in code ([examples/](examples/)) |
-| `mn-config` | Lab configuration files in nine languages |
-| `mn-gui` | Browser GUI for lab configurations |
-| `mn-doctor` | Checks the machine and suggests a working command (`--json` for scripts) |
-| MiniEdit | Mininet's original drag-and-drop editor (`examples/miniedit.py`, needs a desktop) |
-| Docker image | `ghcr.io/mangesh-bhattacharya/mininet` — `latest` (Python, C, C++, Ruby configs) and `full` (+ Java, C#, COBOL) |
-| Launchers | `scripts/mininet-docker.sh` / `.ps1` / `.cmd` — one command on Linux, macOS and Windows |
-| VM tooling | `Vagrantfile`, Multipass/cloud-init, tutorial-VM script |
-| Debian package | `debian/` — build a `.deb` with `dpkg-buildpackage` |
+Mininet needs root to create network namespaces. The person using it
+does not:
 
----
+```bash
+sudo util/nonroot-setup.sh --user alice   # once, by an admin
+mn --test pingall                         # from then on, as alice
+```
 
-## Supported platforms
+`util/install.sh` offers this at the end of an install, or run it later
+with `util/install.sh -u`. It adds the user to a `mininet` group and one
+`sudoers` rule, and the commands re-run themselves as root. This does
+grant that user root by way of Mininet, much as the `docker` group does.
+See [docs/install/without-sudo.md](docs/install/without-sudo.md) for the
+trade-off and how to undo it.
 
-Everything below is tested automatically on every change and every week:
+## Command line
 
-| Platform | Tested |
-|----------|--------|
-| Ubuntu 22.04, 24.04 (native) | install, `pingall` with OVS kernel and userspace datapaths, Linux bridge, shaped links, Mininet's full core and example test suites |
-| Ubuntu 22.04/24.04/26.04, Debian 12/13 (fresh containers) | `install.sh` from scratch, then real networks |
-| Docker image, amd64 and arm64 | networks, lab configs, the GUI, vulnerability scan |
-| Browser GUI | driven in Chromium against a real network, light and dark mode; fails on any browser console error |
-| Lab configs | all nine languages build and run a real network |
-| Debian package | built, installed and used to run a network |
-| OpenFlow reference switch | built and run on gcc 13 (Ubuntu 24.04) and gcc 15 (Ubuntu 26.04) |
-| macOS, Windows | Docker launchers (bash 3.2, PowerShell 5.1/7, `cmd`, Git Bash), `mn-doctor` guidance |
-| Python 3.9 – 3.14 | unit tests for `mn-doctor`, `mn-config` and `mn-gui` (including its security checks) |
+```bash
+sudo mn                                           # 2 hosts, 1 switch, interactive CLI
+sudo mn --topo tree,depth=2,fanout=3 --test pingall
+sudo mn --link tc,bw=10,delay=5ms                 # shaped links
+mininet> h1 ping -c3 h2
+mininet> iperf h1 h2
+```
 
-Mininet needs a Linux kernel, so on Windows and macOS it runs inside
-Linux: WSL 2, the Linux VM behind Docker, or a virtual machine.
+This is unchanged from upstream, so tutorials written for Mininet work
+as written. [docs/getting-started.md](docs/getting-started.md) is a
+starting point.
 
----
+## Also included
 
-## Security and updates
+MiniEdit, the original desktop editor, in `examples/`. A Docker image
+(`latest`, or `full` for the Java, C# and COBOL toolchains). Launcher
+scripts for Linux, macOS and Windows in `scripts/`. A `Vagrantfile` and
+cloud-init for VMs. A `debian/` directory for building a `.deb`.
 
-- **Patched weekly, automatically.** Every Monday the images are rebuilt
-  with all Ubuntu security updates, and Dependabot proposes updates for
-  every GitHub Action, the base image and Python package. Security fixes
-  are proposed immediately.
-- **Scanned and signed.** Images with a fixable high or critical
-  vulnerability are never published. Published images are signed with
-  Sigstore cosign and carry an SBOM and build provenance.
-- **Continuously analysed.** CodeQL (Python, JavaScript, C, workflows),
-  Trivy, pip-audit and dependency review run on every change and weekly.
-- **Pinned supply chain.** Actions pinned to commit SHAs, the base image
-  to a digest, Python packages to exact versions.
+## Troubleshooting
 
-Verify an image before running it:
+Start with `mn-doctor`. If that does not explain it, see
+[docs/troubleshooting.md](docs/troubleshooting.md), then open an issue
+with the output of `mn-doctor --json`.
+
+Tested on every change and again weekly: Ubuntu 22.04/24.04/26.04 and
+Debian 12/13 from clean containers, the Docker image on amd64 and arm64,
+the GUI driven by a real browser in light and dark mode, all nine config
+languages, the Debian package, the OpenFlow reference switch on gcc 13
+and 15, the Windows and macOS launchers, and Python 3.9 through 3.14.
+
+## Security
+
+Images are rebuilt each Monday with current Ubuntu security updates, and
+Dependabot proposes updates as they appear; one whose tests pass merges
+itself. On the 1st and 15th of each month a longer audit runs ClamAV
+over the source and the published image, OSV against the dependencies,
+gitleaks over the git history, and Trivy against the image. Each check
+is tied to the [MITRE ATT&CK](docs/security/attack-coverage.md)
+technique it defends against, and a finding opens an issue.
+
+An image with a fixable high or critical vulnerability is not published.
+Published images are signed with cosign and carry an SBOM and build
+provenance:
 
 ```bash
 cosign verify ghcr.io/mangesh-bhattacharya/mininet:latest \
@@ -311,34 +242,38 @@ cosign verify ghcr.io/mangesh-bhattacharya/mininet:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Mininet needs root (and `--privileged` in Docker) to create network
-namespaces, so run it on a lab machine or VM. Report vulnerabilities
-privately — see [SECURITY.md](SECURITY.md).
-
----
+Mininet needs root and `--privileged`, so run labs on a lab machine, a
+VM or a container. Report vulnerabilities privately:
+[SECURITY.md](SECURITY.md).
 
 ## Documentation
 
-| Topic | |
-|-------|---|
-| Install | [Linux](docs/install/linux.md) · [Windows](docs/install/windows.md) · [macOS](docs/install/macos.md) · [Docker](docs/install/docker.md) · [Virtual machines](docs/install/virtual-machines.md) |
-| Use | [Getting started](docs/getting-started.md) · [Lab configuration files](docs/configuration.md) · [Browser GUI](docs/gui.md) · [Troubleshooting](docs/troubleshooting.md) |
-| Security | [Security policy and patching](SECURITY.md) |
-| Research | [Mininet-AI: AI controllers, LLM network agents, RL environments and tutoring on Mininet](docs/research/mininet-ai.md) |
-| Upstream | [mininet.org](http://mininet.org) · [Walkthrough](http://mininet.org/walkthrough/) · [Python API introduction](https://github.com/mininet/mininet/wiki/Introduction-to-Mininet) · [FAQ](https://github.com/mininet/mininet/wiki/FAQ) |
+Install: [Linux](docs/install/linux.md) ·
+[Windows](docs/install/windows.md) · [macOS](docs/install/macos.md) ·
+[Docker](docs/install/docker.md) ·
+[Virtual machines](docs/install/virtual-machines.md) ·
+[Without sudo](docs/install/without-sudo.md)
 
----
+Use: [Getting started](docs/getting-started.md) ·
+[Lab files](docs/configuration.md) · [Browser GUI](docs/gui.md) ·
+[Troubleshooting](docs/troubleshooting.md)
 
-## Contributing, credits and license
+Other: [Security policy](SECURITY.md) ·
+[ATT&CK coverage](docs/security/attack-coverage.md) ·
+[Mininet-AI notes](docs/research/mininet-ai.md) ·
+[mininet.org](http://mininet.org) ·
+[Upstream walkthrough](http://mininet.org/walkthrough/)
 
-Bug reports and pull requests are welcome — especially installation
-problems on a platform not covered above. Please include the output of
-`sudo mn-doctor --json`. General fixes are also offered upstream (see
-[mininet/mininet#1256](https://github.com/mininet/mininet/pull/1256)).
+## Credits
 
-Mininet is developed by Bob Lantz, Brandon Heller, Nikhil Handigol and the
-[Mininet contributors](CONTRIBUTORS). This cross-platform edition — the
-installers, Docker image, VM tooling, `mn-doctor`, `mn-config`, `mn-gui`,
-documentation and security automation — is maintained by
-[Mangesh Bhattacharya](https://github.com/Mangesh-Bhattacharya). Both are
-distributed under the [BSD 3-Clause License](LICENSE).
+Mininet is the work of Bob Lantz, Brandon Heller, Nikhil Handigol and
+the [Mininet contributors](CONTRIBUTORS). The installers, Docker image,
+VM tooling, `mn-doctor`, `mn-config`, `mn-gui`, documentation and
+security automation in this edition are maintained by
+[Mangesh Bhattacharya](https://github.com/Mangesh-Bhattacharya). General
+fixes go upstream as well, such as
+[mininet/mininet#1256](https://github.com/mininet/mininet/pull/1256).
+Everything is under the [BSD 3-Clause License](LICENSE).
+
+Pull requests are welcome, particularly for an install that did not work
+on your machine.

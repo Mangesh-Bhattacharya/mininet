@@ -123,11 +123,17 @@ async function api(method, name, body) {
   return data;
 }
 
+// Why this machine cannot run labs at all. It is the truth about the
+// computer rather than about the last click, so it comes back as soon
+// as a passing message is cleared.
+let standingNotice = '';
+
 function notify(message, isError) {
   const box = $('notice');
-  box.textContent = message;
-  box.className = 'notice' + (isError ? ' error' : '');
-  box.hidden = !message;
+  const text = message || standingNotice;
+  box.textContent = text;
+  box.className = 'notice' + (isError && message ? ' error' : '');
+  box.hidden = !text;
 }
 
 // -------------------------------------------------------- activity log
@@ -240,7 +246,11 @@ async function runAction(button, fn, name) {
 async function refreshStatus() {
   const status = await api('GET', 'status');
   state.status = status;
-  $('lab-name').textContent = (status.name || 'invalid configuration') + ' - ' + status.path;
+  // Shown on one line and cut off with an ellipsis, so the whole
+  // path goes in the tooltip
+  const where = (status.name || 'invalid configuration') + ' - ' + status.path;
+  $('lab-name').textContent = where;
+  $('lab-name').title = where;
   const pill = $('status-pill');
   if (status.running) { pill.textContent = 'Running'; pill.className = 'pill running'; }
   else if (!status.name) { pill.textContent = 'Config has errors'; pill.className = 'pill invalid'; }
@@ -269,22 +279,30 @@ async function refreshStatus() {
   markRunning(status.running);
 }
 
-function fillSelect(select, names) {
+function fillSelect(select, names, empty) {
   const previous = select.value;
-  select.replaceChildren(...names.map((name) => el('option', { value: name }, name)));
+  select.replaceChildren(...(names.length
+    ? names.map((name) => el('option', { value: name }, name))
+    : [ el('option', { value: '' }, empty || 'none') ]));
   if (names.includes(previous)) select.value = previous;
 }
 
 function fillNodeLists(status) {
   const nodes = status.running ? status.nodes : [];
-  fillSelect($('exec-node'), nodes);
-  fillSelect($('iperf-src'), status.running ? status.hosts : []);
-  fillSelect($('iperf-dst'), status.running ? status.hosts : []);
+  const stopped = 'network is stopped';
+  fillSelect($('exec-node'), nodes, stopped);
+  fillSelect($('iperf-src'), status.running ? status.hosts : [], stopped);
+  fillSelect($('iperf-dst'), status.running ? status.hosts : [], stopped);
   if (status.running && status.hosts.length > 1 && $('iperf-dst').selectedIndex === 0) {
     $('iperf-dst').selectedIndex = status.hosts.length - 1;
   }
-  for (const form of ['exec-form', 'iperf-form']) {
-    for (const control of $(form).elements) control.disabled = !status.running;
+  // Nothing here is greyed out and silent: you can write a command
+  // before the network starts, and pressing a button that cannot work
+  // yet says so in the activity log rather than doing nothing
+  for (const id of ['btn-exec', 'btn-iperf']) {
+    const button = $(id);
+    if (status.running) available(button);
+    else unavailable(button, 'The network is not running: press Run first.');
   }
 }
 
@@ -1030,9 +1048,15 @@ function appendConsole(command, output, extra) {
 
 async function runCommand(event) {
   event.preventDefault();
+  if (blocked($('btn-exec'))) return;
   const node = $('exec-node').value;
   const command = $('exec-cmd').value.trim();
-  if (!command) return;
+  if (!command) {
+    logEvent('blocked', 'Run: nothing happened', null,
+             'Type a command to run on ' + (node || 'a node') +
+             ', for example: ip addr');
+    return;
+  }
   await action(null, async () => {
     const result = await api('POST', 'exec', { node, command });
     appendConsole(`${node}$ ${command}`, result.output,
@@ -1043,6 +1067,7 @@ async function runCommand(event) {
 
 async function runIperf(event) {
   event.preventDefault();
+  if (blocked($('btn-iperf'))) return;
   const src = $('iperf-src').value, dst = $('iperf-dst').value;
   await action(event.submitter, async () => {
     const result = await api('POST', 'iperf', { src, dst });
@@ -1204,10 +1229,13 @@ async function start() {
     logEvent('ok', 'Connected to mn-gui' +
       (state.status.version ? ' (Mininet ' + state.status.version + ')' : ''),
       state.status.path);
+    standingNotice = state.status.blocked
+      ? 'Edit-only mode: ' + state.status.blocked + ', so you can edit ' +
+        'and check labs here but not run them. ' +
+        (state.status.blockedHint || '')
+      : '';
+    notify('');
     if (state.status.blocked) {
-      notify('Edit-only mode: ' + state.status.blocked + ', so you can edit ' +
-             'and check labs here but not run them. ' +
-             (state.status.blockedHint || ''));
       logEvent('warn', 'Edit-only mode: ' + state.status.blocked,
                null, state.status.blockedHint);
     }
@@ -1276,7 +1304,8 @@ function wire() {
   });
   wireMenus();
   document.addEventListener('keydown', (e) => {
-    if (e.target.matches('input, textarea')) return;
+    // A letter typed into a field is text, not a tool shortcut
+    if (e.target.matches('input, textarea, select')) return;
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
       if (canEdit()) action(null, undoChange);

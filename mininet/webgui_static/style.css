@@ -97,8 +97,13 @@ code { font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; f
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand p { margin: 0; font-size: 0.85rem; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A lab's path can be very long: keep it to one line and let the
+   title attribute hold the whole thing */
+.brand p {
+  margin: 0; font-size: 0.85rem; max-width: 62vw;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .logo {
   width: 32px; height: 32px; border-radius: 8px;
   background:
@@ -307,6 +312,10 @@ textarea#editor[readonly] { opacity: 0.8; }
   font-size: 12.5px; white-space: pre-wrap; word-break: break-word; margin: 0;
 }
 .console .cmd { color: var(--accent); font-weight: 600; }
+.console:empty::after {
+  content: "Output of the commands you run appears here.";
+  color: var(--muted);
+}
 
 table.matrix { border-collapse: collapse; font-size: 0.85rem; }
 table.matrix th, table.matrix td { border: 1px solid var(--border); padding: 4px 8px; text-align: center; }
@@ -380,3 +389,29 @@ dialog {
 }
 dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 dialog input { width: 100%; margin-top: 8px; }
+
+/* One screen, like MiniEdit: on a window with room for it, nothing
+   scrolls away. The canvas and the file take the height that is left
+   over, and each panel scrolls inside itself. Small or short windows
+   keep the ordinary scrolling page above. */
+@media (min-width: 901px) and (min-height: 700px) {
+  /* auto, not hidden: if a window is still too short for the minimum
+     heights below, the work area scrolls instead of cutting a button
+     off the bottom */
+  .app { display: flex; flex-direction: column; overflow: auto; }
+  .layout { flex: 1 1 auto; min-height: 0; }
+  .panel { display: flex; flex-direction: column; min-height: 0; }
+
+  /* Left: the canvas takes whatever the menus and summary leave */
+  .editor-area { flex: 1 1 auto; min-height: 0; }
+  #graph { height: auto; flex: 1 1 auto; min-height: 240px; }
+  #props { max-height: 30vh; overflow-y: auto; }
+
+  /* Right: the open tab fills the panel, and its editor or console
+     grows with it instead of sitting in a fixed-height box */
+  .tab-body { flex: 1 1 auto; min-height: 0; display: flex;
+              flex-direction: column; overflow-y: auto; }
+  .tab-body[hidden] { display: none; }
+  textarea#editor { flex: 1 1 auto; min-height: 160px; resize: none; }
+  .console { flex: 1 1 auto; max-height: none; }
+}

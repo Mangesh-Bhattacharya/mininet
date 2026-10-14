@@ -199,7 +199,7 @@
           <label class="sr" for="exec-cmd">Command</label>
           <input id="exec-cmd" type="text" placeholder="ip addr, ping -c3 10.0.0.2, ..."
                  autocomplete="off" spellcheck="false">
-          <button class="primary" type="submit">Run</button>
+          <button id="btn-exec" class="primary" type="submit">Run</button>
         </form>
         <form id="iperf-form" class="row">
           <span class="small muted">iperf</span>
@@ -208,7 +208,7 @@
           <span class="small muted">to</span>
           <label class="sr" for="iperf-dst">To</label>
           <select id="iperf-dst"></select>
-          <button type="submit">Measure bandwidth</button>
+          <button id="btn-iperf" type="submit">Measure bandwidth</button>
         </form>
         <pre id="console" class="console" aria-live="polite"></pre>
       </div>
