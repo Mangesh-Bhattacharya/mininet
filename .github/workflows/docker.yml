@@ -225,3 +225,13 @@ jobs:
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  report-failure:
+    # A failing weekly rebuild means the published images stop getting
+    # security updates: say so out loud instead of failing quietly.
+    needs: [test, test-full, publish]
+    if: failure() && github.event_name == 'schedule'
+    uses: ./.github/workflows/report-failure.yml
+    permissions:
+      contents: read
+      issues: write

@@ -85,6 +85,9 @@ FIELDS = [
     ( 'hosts[].ip', EDIT, 'IP address with prefix (10.0.0.1/24).' ),
     ( 'hosts[].mac', CARE, 'MAC address (00:00:00:00:00:01).' ),
     ( 'hosts[].gateway', CARE, 'Default gateway IP address.' ),
+    ( 'hosts[].router', EDIT,
+      'true turns this host into a router: it forwards IPv4 between its '
+      'interfaces (MiniEdit calls this a legacy router).' ),
     ( 'hosts[].x', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'hosts[].y', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'switches[].name', EDIT,
@@ -93,6 +96,9 @@ FIELDS = [
       'OpenFlow datapath ID, up to 16 hex digits, as a quoted string.' ),
     ( 'switches[].protocols', CARE,
       'OpenFlow versions for ovs switches, e.g. OpenFlow13.' ),
+    ( 'switches[].legacy', EDIT,
+      'true makes this a standalone learning switch with no controller '
+      '(MiniEdit calls this a legacy switch).' ),
     ( 'switches[].x', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'switches[].y', CARE, 'Position in the GUI canvas; the GUI sets it.' ),
     ( 'links[].from', EDIT, 'Name of the node at one end of the link.' ),
@@ -530,6 +536,11 @@ class Checker( object ):
                       'e.g. 10.0.0.1/24' if prefix else 'e.g. 10.0.0.254' )
             return None
 
+    def flag( self, node, path, key ):
+        "Check an optional true/false setting on a node"
+        if key in node:
+            self.boolean( node[ key ], '%s.%s' % ( path, key ) )
+
     def position( self, node, path ):
         "Check the GUI's x/y canvas position"
         for key in ( 'x', 'y' ):
@@ -616,7 +627,7 @@ def _checkHosts( chk, hosts, names, ips ):
     for i, host in enumerate( hosts ):
         path = 'hosts[%d]' % i
         if not chk.keys( host, path, [ 'name', 'ip', 'mac', 'gateway',
-                                       'x', 'y' ] ):
+                                       'router', 'x', 'y' ] ):
             continue
         name = host.get( 'name' )
         if chk.name( name, path + '.name' ):
@@ -637,6 +648,7 @@ def _checkHosts( chk, hosts, names, ips ):
         if 'gateway' in host:
             chk.address( host[ 'gateway' ], path + '.gateway',
                          prefix=False )
+        chk.flag( host, path, 'router' )
         chk.position( host, path )
 
 
@@ -645,7 +657,7 @@ def _checkSwitches( chk, switches, names ):
     for i, switch in enumerate( switches ):
         path = 'switches[%d]' % i
         if not chk.keys( switch, path, [ 'name', 'dpid', 'protocols',
-                                         'x', 'y' ] ):
+                                         'legacy', 'x', 'y' ] ):
             continue
         name = switch.get( 'name' )
         if chk.name( name, path + '.name' ):
@@ -668,6 +680,7 @@ def _checkSwitches( chk, switches, names ):
                 str( protocols ) ):
             chk.add( path + '.protocols', 'invalid %r' % ( protocols, ),
                      'e.g. OpenFlow13 or OpenFlow10,OpenFlow13' )
+        chk.flag( switch, path, 'legacy' )
         chk.position( switch, path )
 
 
@@ -928,6 +941,38 @@ def _linkParams( options ):
     return params
 
 
+def routerClass():
+    """A host that forwards IPv4 between its interfaces - MiniEdit's
+       legacy router (hosts[].router: true)"""
+    from mininet.node import Node  # pylint: disable=import-outside-toplevel
+
+    class LabRouter( Node ):
+        "A Mininet host with IP forwarding switched on"
+
+        def config( self, **params ):  # pylint: disable=arguments-differ
+            "Switch forwarding on when the node starts"
+            result = super( LabRouter, self ).config( **params )
+            self.cmd( 'sysctl -w net.ipv4.ip_forward=1' )
+            return result
+
+        def terminate( self ):
+            "Switch it off again"
+            self.cmd( 'sysctl -w net.ipv4.ip_forward=0' )
+            super( LabRouter, self ).terminate()
+
+    return LabRouter
+
+
+def legacySwitchClass( cfg ):
+    """A standalone learning switch that needs no controller - MiniEdit's
+       legacy switch (switches[].legacy: true)"""
+    # pylint: disable=import-outside-toplevel
+    from mininet.node import OVSBridge
+    from mininet.nodelib import LinuxBridge
+    return ( LinuxBridge if cfg[ 'network' ][ 'switch' ] == 'lxbr'
+             else OVSBridge )
+
+
 def buildTopo( cfg ):
     "Return a mininet Topo for a validated configuration"
     # Imported here so validation works without Mininet's Linux deps
@@ -957,10 +1002,15 @@ def buildTopo( cfg ):
             opts[ 'mac' ] = host[ 'mac' ]
         if 'gateway' in host:
             opts[ 'defaultRoute' ] = 'via %s' % host[ 'gateway' ]
+        if host.get( 'router' ):
+            opts[ 'cls' ] = routerClass()
         result.addHost( host[ 'name' ], **opts )
     for switch in cfg[ 'switches' ]:
         opts = { k: switch[ k ] for k in ( 'dpid', 'protocols' )
                  if k in switch }
+        if switch.get( 'legacy' ):
+            opts.pop( 'protocols', None )  # no OpenFlow without a controller
+            opts[ 'cls' ] = legacySwitchClass( cfg )
         result.addSwitch( switch[ 'name' ], **opts )
     for link in cfg[ 'links' ]:
         result.addLink( link[ 'from' ], link[ 'to' ], **_linkParams( link ) )
@@ -1033,9 +1083,12 @@ def graph( cfg ):
     "Nodes and links of a validated configuration, for drawing"
     hosts, switches, links = expand( cfg )
     nodes = []
-    for kind, group in ( ( 'host', hosts ), ( 'switch', switches ) ):
+    for kind, group, flag, role in ( ( 'host', hosts, 'router', 'router' ),
+                                     ( 'switch', switches, 'legacy',
+                                       'legacyswitch' ) ):
         for node in group:
-            item = { 'id': node[ 'name' ], 'kind': kind }
+            item = { 'id': node[ 'name' ], 'kind': kind,
+                     'role': role if node.get( flag ) else kind }
             for key in ( 'x', 'y' ):
                 if key in node:
                     item[ key ] = node[ key ]
@@ -1051,10 +1104,13 @@ def graph( cfg ):
             label.append( '%s%% loss' % link[ 'loss' ] )
         edges.append( { 'from': link[ 'from' ], 'to': link[ 'to' ],
                         'label': ' '.join( label ) } )
-    if cfg[ 'network' ][ 'controller' ] != 'none' and switches:
-        nodes.append( { 'id': 'c0', 'kind': 'controller' } )
+    # Legacy switches are standalone: they have no controller connection
+    managed = [ s for s in switches if not s.get( 'legacy' ) ]
+    if cfg[ 'network' ][ 'controller' ] != 'none' and managed:
+        nodes.append( { 'id': 'c0', 'kind': 'controller',
+                        'role': 'controller' } )
         edges += [ { 'from': 'c0', 'to': s[ 'name' ], 'label': '',
-                     'control': True } for s in switches ]
+                     'control': True } for s in managed ]
     return { 'nodes': nodes, 'links': edges, 'editable': not cfg[
         'topology' ] }
 
@@ -1067,6 +1123,17 @@ def summary( cfg ):
         cfg[ 'name' ], len( hosts ), len( switches ), len( links ) ),
         'switch=%s controller=%s datapath=%s' % (
             net[ 'switch' ], net[ 'controller' ], net[ 'datapath' ] ) ]
+    extra = []
+    routers = len( [ h for h in hosts if h.get( 'router' ) ] )
+    legacy = len( [ s for s in switches if s.get( 'legacy' ) ] )
+    if routers:
+        extra.append( '%d of the hosts %s a router' %
+                      ( routers, 'is' if routers == 1 else 'are' ) )
+    if legacy:
+        extra.append( '%d of the switches %s standalone (no controller)' %
+                      ( legacy, 'is' if legacy == 1 else 'are' ) )
+    if extra:
+        lines.append( ', '.join( extra ) )
     if usesShaping( cfg ):
         lines.append( 'link shaping (bw/delay/loss) is enabled' )
     return '\n'.join( lines )
@@ -1134,9 +1201,17 @@ def _cmdShow( args ):
 def _cmdRun( args ):
     "mn-config run"
     cfg = load( args.file )
-    if not hasattr( os, 'geteuid' ) or os.geteuid() != 0:
-        print( 'mn-config run needs root: sudo mn-config run %s' %
-               args.file, file=sys.stderr )
+    # pylint: disable=import-outside-toplevel
+    from mininet import elevate
+    # Where an administrator has set it up, re-run as root so that
+    # nobody has to type sudo
+    elevate.elevate()
+    reason, hint = elevate.blocker(
+        'Run it with: sudo mn-config run %s' % args.file, args.file,
+        what='mn-config run' )
+    if reason:
+        print( 'mn-config run: %s\n%s' % ( reason, hint ),
+               file=sys.stderr )
         return 1
     # pylint: disable=import-outside-toplevel
     from mininet.log import setLogLevel, info

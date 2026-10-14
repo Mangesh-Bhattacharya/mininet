@@ -30,6 +30,13 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Run code check
         run: make codecheck PYTHON=python
+      - name: The ATT&CK coverage page matches the control list
+        run: |
+          python scripts/security/attack-report.py --doc > coverage.md
+          diff -u docs/security/attack-coverage.md coverage.md || {
+            echo "::error title=Out of date::Run"\
+              "'scripts/security/attack-report.py --doc >"\
+              "docs/security/attack-coverage.md'"; exit 1; }
       - name: API documentation builds (doxygen + util/doxify.py)
         run: |
           sudo apt-get update -qq

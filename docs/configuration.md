@@ -65,7 +65,9 @@ this list too.
 | `topology.hosts`, `.switches`, `.depth`, `.fanout` | Size of the built-in topology | `depth: 2` |
 | `topology.link` | Shaping applied to every link | `{ bw: 10, delay: 5ms }` |
 | `hosts[].name`, `hosts[].ip` | Your hosts | `h1`, `10.0.0.1/24` |
+| `hosts[].router` | `true` turns the host into a router: it forwards IPv4 between its interfaces (MiniEdit's *legacy router*) | `true` |
 | `switches[].name` | Your switches | `s1` |
+| `switches[].legacy` | `true` makes a standalone learning switch with no controller (MiniEdit's *legacy switch*) | `true` |
 | `links[]` | `[a, b]`, or `{from, to, bw, delay, loss}` | `{ from: s1, to: s2, bw: 10 }` |
 | `links[].bw` | Bandwidth limit, Mbit/s (0.1-1000) | `100` |
 | `links[].delay` | One-way delay | `5ms`, `100us`, `1s` |
@@ -150,6 +152,34 @@ hosts:
   - { name: h1, ip: 10.0.0.1/24 }
   - { name: h2, ip: 10.0.0.2/24 }
 links: [[h1, s1], [h2, s1]]
+```
+
+### YAML: a router between two subnets
+
+`router: true` is MiniEdit's legacy router - a host that forwards IPv4.
+`legacy: true` is MiniEdit's legacy switch: it learns addresses by
+itself, so this lab needs no controller at all.
+
+```yaml
+version: 1
+name: routing-lab
+network:
+  controller: none
+switches:
+  - { name: s1, legacy: true }
+  - { name: s2, legacy: true }
+hosts:
+  - { name: r1, router: true }
+  - { name: h1, ip: 10.0.1.1/24, gateway: 10.0.1.254 }
+  - { name: h2, ip: 10.0.2.1/24, gateway: 10.0.2.254 }
+links:
+  - [h1, s1]
+  - [h2, s2]
+  - { from: r1, to: s1 }
+  - { from: r1, to: s2 }
+run:
+  - r1 ip address add 10.0.1.254/24 dev r1-eth0
+  - r1 ip address add 10.0.2.254/24 dev r1-eth1
 ```
 
 ### The same lab in every language

@@ -307,10 +307,75 @@ class NotRootTests( GuiTestCase ):
     root = False
 
     def testStartNeedsRoot( self ):
-        "403 with a hint"
-        status, _, data = self.request( 'POST', '/api/start', {} )
+        "On Linux: 403, and the hint says exactly what to run"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ):
+            status, _, data = self.request( 'POST', '/api/start', {} )
         self.assertEqual( status, 403 )
-        self.assertIn( 'sudo', data[ 'error' ] )
+        self.assertIn( 'not running as root', data[ 'error' ] )
+        self.assertIn( 'sudo mn-gui', data[ 'hint' ] )
+        self.assertIn( self.path, data[ 'hint' ] )
+        self.assertIn( 'nonroot-setup.sh', data[ 'hint' ] )
+
+    def testStartOffLinuxDoesNotSaySudo( self ):
+        "Telling a Windows user to run sudo would be useless advice"
+        for platform, expected in ( ( 'win32', 'WSL 2' ),
+                                    ( 'darwin', 'container' ) ):
+            with self.subTest( platform=platform ):
+                with mock.patch.object( webgui.elevate, 'isLinux',
+                                        return_value=False ), \
+                        mock.patch.object( webgui.elevate.sys, 'platform',
+                                           platform ):
+                    _s, _h, data = self.request( 'POST', '/api/start', {} )
+                self.assertIn( 'no Linux kernel', data[ 'error' ] )
+                self.assertNotIn( 'sudo mn-gui', data[ 'hint' ] )
+                self.assertIn( expected, data[ 'hint' ] )
+
+    def testStatusSaysWhatIsInTheWay( self ):
+        "The GUI gets the same reason without having to guess"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ):
+            _s, _h, data = self.request( 'GET', '/api/status' )
+        self.assertIn( 'not running as root', data[ 'blocked' ] )
+        self.assertIn( 'sudo mn-gui', data[ 'blockedHint' ] )
+
+
+class HintTests( unittest.TestCase ):
+    "Errors come with something to try"
+
+    def testKnownFailures( self ):
+        "The usual failures are recognised"
+        cases = [
+            ( 'ovs-vsctl: database connection failed', 'Open vSwitch' ),
+            ( 'Cannot find required executable ovs-vsctl', 'install.sh' ),
+            ( 'RTNETLINK answers: File exists', 'mn -c' ),
+            ( "No module named 'fcntl'", 'Linux' ),
+            ( 'OSError: [Errno 98] Address already in use', '--port' ) ]
+        for message, expected in cases:
+            with self.subTest( message=message ):
+                hint = webgui.hintFor( message )
+                self.assertIsNotNone( hint, message )
+                self.assertIn( expected, hint )
+
+    def testUnknownFailure( self ):
+        "An error nobody anticipated gets no invented advice"
+        self.assertIsNone( webgui.hintFor( 'something odd happened' ) )
+
+    def testNothingInTheWayWhenRoot( self ):
+        "As root on Linux, nothing blocks a start"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ), \
+                mock.patch.object( webgui, 'isRoot', return_value=True ):
+            self.assertEqual( webgui.startBlocker( '/tmp/lab.yaml' ),
+                              ( None, None ) )
+
+    def testRootIsThisModulesQuestion( self ):
+        "startBlocker asks webgui.isRoot, which the server can patch"
+        with mock.patch.object( webgui.elevate, 'isLinux',
+                                return_value=True ), \
+                mock.patch.object( webgui, 'isRoot', return_value=False ):
+            reason, _hint = webgui.startBlocker( '/tmp/lab.yaml' )
+        self.assertIn( 'not running as root', reason )
 
 
 class InvalidConfigTests( GuiTestCase ):

@@ -36,10 +36,25 @@ sudo mn-doctor
 sudo mn --test pingall
 ```
 
+### Don't want to type `sudo`?
+
+Mininet needs root, but you don't have to be an administrator to use
+it. One command by somebody who is lets you run it as yourself:
+
+```bash
+sudo util/nonroot-setup.sh          # or: util/install.sh -u
+# log out and back in, then:
+mn --test pingall
+```
+
+What that grants, and how to undo it:
+[without-sudo.md](without-sudo.md).
+
 ### Optional extras
 
 | Flag | Installs |
 |------|----------|
+| `-u` | lets this user run Mininet without typing `sudo` |
 | `-w` | Wireshark with the OpenFlow dissector |
 | `-p` | POX controller (into `../pox`) |
 | `-f` | OpenFlow 1.0 reference switch/controller (built from source) |

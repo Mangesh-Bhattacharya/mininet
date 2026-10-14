@@ -27,6 +27,7 @@ if 'PYTHONPATH' in os.environ:
 
 from mininet.clean import cleanup
 import mininet.cli
+from mininet.elevate import elevate
 from mininet.log import lg, LEVELS, info, debug, warn, error, output
 from mininet.net import Mininet, MininetWithControlNet, VERSION
 from mininet.node import ( Host, CPULimitedHost, Controller, OVSController,
@@ -431,6 +432,9 @@ class MininetRunner( object ):
 
 
 if __name__ == "__main__":
+    # Where an administrator has set it up (util/nonroot-setup.sh),
+    # re-run as root so that nobody has to type sudo
+    elevate()
     try:
         MininetRunner()
     except KeyboardInterrupt:

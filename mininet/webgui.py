@@ -31,6 +31,7 @@ import hmac
 import io
 import json
 import os
+import re
 import secrets
 import signal
 import subprocess
@@ -40,7 +41,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from mininet import labconfig
+from mininet import elevate, labconfig
 from mininet.labconfig import ConfigError
 
 STATIC_DIR = os.path.join( os.path.dirname( os.path.abspath( __file__ ) ),
@@ -72,16 +73,80 @@ DEFAULT_CONFIG = os.path.join( labconfig.TEMPLATE_DIR, 'lab.yaml' )
 
 
 class GuiError( Exception ):
-    "An API request that can't be completed; status is the HTTP status"
+    """An API request that can't be completed; status is the HTTP
+       status and hint tells the user what to do about it"""
 
-    def __init__( self, message, status=400 ):
+    def __init__( self, message, status=400, hint=None ):
         Exception.__init__( self, message )
         self.status = status
+        self.hint = hint
+
+
+# What to suggest when something goes wrong. The GUI shows the hint
+# next to the error in its activity log, so a failure says what to try
+# instead of only what happened.
+TROUBLE = [
+    # More specific patterns first: the first match wins
+    ( r'Cannot find required executable',
+      'Install the missing program - util/install.sh -n installs '
+      'everything Mininet needs.' ),
+    ( r'ovs-vsctl|ovsdb-server|database connection failed',
+      'Open vSwitch is not running: sudo service openvswitch-switch '
+      'start (or systemctl start openvswitch-switch).' ),
+    ( r'RTNETLINK|File exists|Error creating interface pair|'
+      r'still has a link|Resource busy',
+      'Left-over state from an earlier run: stop the network, then '
+      'run sudo mn -c in a terminal and try again.' ),
+    ( r'Address already in use',
+      'Another program is using that port: start mn-gui with '
+      '--port 8081, or stop the other one.' ),
+    ( r'No module named .fcntl.|requires Linux|not supported on Windows',
+      'Starting a network needs Linux. Use WSL 2, Docker or a VM; '
+      'editing and checking the lab works here.' ),
+    ( r'Permission denied|Operation not permitted',
+      'Start mn-gui with sudo: sudo mn-gui --config <your lab file>.' ),
+    ( r'controller|6653|6633',
+      'If the lab uses controller: remote, check that your controller '
+      'is running and reachable on that address and port.' ),
+    ( r'timed out|timeout',
+      'The command did not finish in time. Run it in the Console tab '
+      'to see where it stops.' ),
+]
+
+
+def startBlocker( path=None ):
+    """Why can this machine not start a network? ( reason, hint ), or
+       ( None, None ) when nothing is in the way."""
+    action = ( 'Stop it (Ctrl-C) and start it again with: sudo mn-gui'
+               '%s' % ( ' --config %s' % path if path else '' ) )
+    # isRoot() here, not elevate's: this module owns that question
+    return elevate.blocker( action, path, what='mn-gui', root=isRoot() )
+
+
+def hintFor( text ):
+    "A suggested fix for an error message, or None"
+    for pattern, hint in TROUBLE:
+        if re.search( pattern, text, re.I ):
+            return hint
+    return None
 
 
 def isRoot():
     "Are we running as root (needed to start networks)?"
     return hasattr( os, 'geteuid' ) and os.geteuid() == 0
+
+
+def mininetVersion():
+    """Mininet's version, read from the source rather than imported:
+       mininet.net only imports on Linux, and the GUI also runs on
+       Windows and macOS"""
+    source = os.path.join( os.path.dirname( __file__ ), 'net.py' )
+    try:
+        with io.open( source, encoding='utf-8' ) as f:
+            found = re.search( r'^VERSION\s*=\s*"([^"]+)"', f.read(), re.M )
+    except OSError:
+        return ''
+    return found.group( 1 ) if found else ''
 
 
 def writeFile( path, text ):
@@ -185,12 +250,16 @@ class LabSession( object ):
         "Build and start the network; return startup command output"
         with self.lock:
             if self.net is not None:
-                raise GuiError( 'the network is already running', 409 )
+                raise GuiError( 'the network is already running', 409,
+                                'Press Stop first.' )
             if self.cfg is None:
-                raise GuiError( 'fix the configuration errors first', 409 )
-            if not isRoot():
-                raise GuiError( 'starting a network needs root: restart '
-                                'with sudo mn-gui', 403 )
+                raise GuiError( 'fix the configuration errors first', 409,
+                                'The problems are listed under the '
+                                'editor; Save once they are gone.' )
+            reason, hint = startBlocker( self.path )
+            if reason:
+                raise GuiError( 'cannot start a network here: %s' % reason,
+                                403, hint )
             net = self.netFactory( self.cfg )
             try:
                 net.start()
@@ -285,8 +354,12 @@ class LabSession( object ):
             # and macOS, where the GUI can edit labs but not start them
             hosts = ( [ h[ 'name' ] for h in labconfig.expand( cfg )[ 0 ] ]
                       if cfg else [] )
+        blocked, blockedHint = startBlocker( self.path )
         return {
             'running': self.running(), 'root': isRoot(),
+            'version': mininetVersion(), 'user': elevate.userName(),
+            'sudoFree': os.path.exists( elevate.SUDOERS ),
+            'blocked': blocked, 'blockedHint': blockedHint,
             'path': self.path, 'language': self.lang.title,
             'format': self.lang.key, 'editable': self.editable(),
             'name': cfg[ 'name' ] if cfg else None,
@@ -418,15 +491,20 @@ class Handler( BaseHTTPRequestHandler ):
         try:
             self.replyJson( 200, route( self.server.session, body or {} ) )
         except GuiError as e:
-            self.replyJson( e.status, { 'error': str( e ) } )
+            self.replyJson( e.status, { 'error': str( e ),
+                                        'hint': e.hint or
+                                        hintFor( str( e ) ) } )
         except ConfigError as e:
-            self.replyJson( 400, { 'error': 'configuration problem',
-                                   'issues': [ i.asDict()
-                                               for i in e.issues ] } )
+            self.replyJson( 400, {
+                'error': 'configuration problem',
+                'hint': 'Fix the problems listed under the editor, then '
+                        'try again.',
+                'issues': [ i.asDict() for i in e.issues ] } )
         except Exception as e:  # pylint: disable=broad-except
             from mininet.log import error  # pylint: disable=C0415
             error( 'mn-gui: %s failed: %r\n' % ( name, e ) )
-            self.replyJson( 500, { 'error': '%s failed: %s' % ( name, e ) } )
+            self.replyJson( 500, { 'error': '%s failed: %s' % ( name, e ),
+                                   'hint': hintFor( '%r' % ( e, ) ) } )
 
 
 def _validate( session, body ):
@@ -529,6 +607,9 @@ def main( argv=None ):
     args = parser().parse_args( argv )
     from mininet.log import setLogLevel, info, warn  # pylint: disable=C0415
     setLogLevel( args.verbosity )
+    # Where an administrator has set it up (util/nonroot-setup.sh),
+    # re-run as root so that nobody has to type sudo
+    elevate.elevate()
     try:
         if args.config and not os.path.exists( args.config ):
             # Start a new lab from the matching starter template

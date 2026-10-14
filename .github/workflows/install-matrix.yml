@@ -149,3 +149,48 @@ jobs:
               mn --switch user --test pingall
               mn --switch user --controller ref --test pingall
             '
+
+  nonroot:
+    # The point of util/nonroot-setup.sh: after it, somebody who is not
+    # an administrator runs Mininet by typing "mn", with no sudo and no
+    # password. Proved end to end on a real network.
+    name: Mininet without sudo
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load kernel modules on the host
+        run: sudo modprobe -a openvswitch sch_htb sch_netem
+      - name: Install, set up a plain user, and run as that user
+        run: |
+          docker run --rm --privileged \
+            -v /lib/modules:/lib/modules:ro \
+            -v "$PWD:/src:ro" \
+            ubuntu:24.04 bash -c '
+              set -ex
+              apt-get update -qq
+              apt-get install -y -qq sudo adduser > /dev/null
+              cp -a /src /root/mininet
+              cd /root/mininet
+              util/install.sh -nv
+              /usr/share/openvswitch/scripts/ovs-ctl start || \
+                service openvswitch-switch start
+              # A plain user: no sudo rights of any kind to begin with
+              adduser --disabled-password --gecos "" student
+              sudo -u student -H sh -c "cd ~ && ! mn --test pingall" \
+                && echo "as expected, mn needs root before the setup"
+              util/nonroot-setup.sh --status
+              # The administrator sets it up, once
+              util/nonroot-setup.sh --user student
+              util/nonroot-setup.sh --status
+              # ...and now the student just runs it. No sudo typed.
+              sudo -u student -H sg mininet -c "mn --test pingall"
+              sudo -u student -H sg mininet -c "mn-config init --lang yaml -o /tmp/lab.yaml"
+              sudo -u student -H sg mininet -c "mn-config run --no-cli /tmp/lab.yaml"
+              sudo -u student -H sg mininet -c "mn-doctor" | grep -i "without a password"
+              # Undoing it puts the machine back as it was
+              util/nonroot-setup.sh --remove
+              sudo -u student -H sg mininet -c "! mn --test pingall" \
+                && echo "as expected, removing the rule needs root again"
+            '

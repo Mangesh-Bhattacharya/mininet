@@ -11,6 +11,7 @@
   --bad: #b91c1c;
   --bad-bg: #fee2e2;
   --warn-bg: #fef3c7;
+  --warn-edge: #b45309;
   --host: #2563eb;
   --switch: #0f766e;
   --controller: #9333ea;
@@ -25,6 +26,7 @@
   --dev-edge: #98a3b6;
   --dev-screen: #17202e;
   --switch: #2f7fd1;
+  --switch-top: #4f9ae4;
   --switch-edge: #1d5ea0;
   --ctrl: #aab3c1;
   --ctrl-edge: #78828f;
@@ -47,6 +49,7 @@
     --bad: #f87171;
     --bad-bg: #3a1717;
     --warn-bg: #3a2f10;
+    --warn-edge: #fbbf24;
     --host: #60a5fa;
     --switch: #2dd4bf;
     --controller: #c084fc;
@@ -61,6 +64,7 @@
     --dev-edge: #4a5871;
     --dev-screen: #080c12;
     --switch: #3b8fe0;
+    --switch-top: #5aa6ea;
     --switch-edge: #2a6ba9;
     --ctrl: #7f8a9c;
     --ctrl-edge: #5c6577;
@@ -156,6 +160,35 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
    Device icons and link colours follow the original MiniEdit. */
 .head-right { display: flex; align-items: center; gap: 10px; }
 .small-btn { padding: 3px 9px; font-size: 0.82rem; }
+
+/* Menu bar, as in MiniEdit: File, Edit, Run, Help */
+.menubar {
+  display: flex; gap: 2px; margin: 8px 0 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--code-bg); padding: 2px;
+}
+.menu-wrap { position: relative; }
+.menu-title {
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: 3px 12px; font-size: 0.88rem;
+}
+.menu-title:hover, .menu-title[aria-expanded="true"] {
+  background: var(--panel); border-color: var(--border);
+}
+.menu {
+  position: absolute; top: calc(100% + 3px); left: 0; z-index: 20;
+  min-width: 220px; padding: 4px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+.menu button {
+  display: flex; justify-content: space-between; gap: 18px; width: 100%;
+  border: none; border-radius: 6px; background: none; text-align: left;
+  padding: 6px 10px; font-size: 0.88rem;
+}
+.menu button:hover { background: var(--code-bg); }
+.menu .key { color: var(--muted); font-size: 0.8rem; }
+
 .editor-area { display: flex; gap: 10px; margin-top: 8px; }
 .palette {
   display: flex; flex-direction: column; gap: 6px; padding: 7px;
@@ -172,7 +205,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .palette .tool .glyph { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .palette .tool .glyph-fill { fill: var(--text); }
 .palette .tool .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+.palette .tool .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
 .palette .tool .gloss { fill: #fff; opacity: 0.18; }
+.palette .tool .slot { fill: var(--dev-screen); opacity: .8; }
 .palette .tool .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .palette .tool[data-tool="link"] .glyph { stroke: var(--link); }
 .palette .tool[data-tool="link"] .glyph-fill { fill: var(--link); }
@@ -205,6 +240,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 #graph .icon.controller .case { fill: var(--ctrl); stroke: var(--ctrl-edge); }
 #graph .icon .screen { fill: var(--dev-screen); }
 #graph .icon .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .icon .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .node.clickable { cursor: pointer; }
 #graph .icon .gloss { fill: #fff; opacity: 0.16; }
 #graph .icon .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #graph .icon .slot { fill: var(--dev-screen); opacity: .8; }
@@ -281,6 +318,61 @@ table.matrix td.no { background: var(--bad-bg); color: var(--bad); }
 .guide-group dl { margin: 0; display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: 4px 12px; font-size: 0.85rem; }
 .guide-group dt code { color: var(--accent); }
 .guide-group dd { margin: 0; }
+
+/* Activity log: a drawer at the bottom that says what the GUI is
+   doing, what it ran, and what to try when something fails */
+/* The page is an app shell: the work area scrolls, the drawer sits
+   below it and never covers anything */
+html { height: 100%; }
+body { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.app { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.activity {
+  flex: 0 0 auto; max-height: 42vh;
+  display: flex; flex-direction: column;
+  background: var(--panel); border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.10);
+}
+.activity-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 20px; border-bottom: 1px solid var(--border);
+}
+.activity-head h2 { font-size: 0.85rem; }
+.activity-head .spacer { flex: 1; }
+.activity.collapsed .activity-log { display: none; }
+.activity-log {
+  list-style: none; margin: 0; padding: 8px 20px 12px;
+  overflow-y: auto; min-height: 150px;
+}
+.activity-log:empty::after {
+  content: "Nothing yet. Commands, results and errors appear here.";
+  color: var(--muted); font-size: 0.85rem;
+}
+.log {
+  display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px;
+  padding: 4px 0 4px 10px; border-left: 3px solid var(--border);
+  margin-bottom: 4px; font-size: 0.86rem;
+}
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log-title { font-weight: 550; overflow-wrap: anywhere; }
+.log-detail, .log-hint { grid-column: 2; margin: 2px 0 0; }
+.log-detail {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 10em; overflow-y: auto; color: var(--muted);
+}
+.log-hint { color: var(--text); background: var(--warn-bg);
+            border-radius: 6px; padding: 4px 8px; }
+.log.ok { border-left-color: var(--ok); }
+.log.cmd { border-left-color: var(--accent); }
+.log.cmd .log-title {
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 500;
+}
+.log.step { border-left-color: var(--accent); }
+.log.warn { border-left-color: var(--warn-edge); }
+.log.blocked { border-left-color: var(--warn-edge); }
+.log.error { border-left-color: var(--bad); }
+.log.error .log-title { color: var(--bad); }
+button.unavailable { opacity: 0.55; }
 
 dialog {
   border: 1px solid var(--border); border-radius: var(--radius);

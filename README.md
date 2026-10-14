@@ -109,6 +109,20 @@ Details: [docs/install/windows.md](docs/install/windows.md).
 Use the `docker run` above, or a Linux VM with Multipass/UTM/Vagrant —
 [docs/install/macos.md](docs/install/macos.md).
 
+### Without being an administrator
+
+Mininet needs root to build networks, but the person using it does not
+have to be an admin, or type `sudo` at all. `util/install.sh` offers
+this during installation, and you can choose it later:
+
+```bash
+sudo util/nonroot-setup.sh --user alice   # once, by an administrator
+mn --test pingall                         # then, as alice
+```
+
+It grants that user root through Mininet, like the `docker` group does
+— [the trade-off, and how to undo it](docs/install/without-sudo.md).
+
 ### Design labs without Linux
 
 Running a network needs a Linux kernel, but writing, checking and

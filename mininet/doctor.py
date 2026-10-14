@@ -21,6 +21,8 @@ import shlex
 import sys
 from subprocess import Popen, PIPE, STDOUT
 
+from mininet import elevate
+
 OK, WARN, FAIL, INFO = 'ok', 'warn', 'fail', 'info'
 
 
@@ -127,9 +129,15 @@ def checkBasics( env, add ):
     "Privileges, Python, namespaces and core commands"
     if env.isRoot():
         add( 'root', OK, 'running as root' )
+    elif env.exists( elevate.SUDOERS ):
+        # An administrator has set this machine up so that Mininet's
+        # commands re-run themselves as root
+        add( 'root', OK, 'not root, but Mininet may run as root without '
+             'a password (%s)' % elevate.SUDOERS )
     else:
         add( 'root', WARN, 'not running as root',
-             'Mininet must be run with sudo: sudo mn' )
+             'Run Mininet with sudo (sudo mn), or let this user run it '
+             'without sudo: %s' % elevate.setupHint() )
     major, minor = env.pythonVersion()
     if ( major, minor ) >= ( 3, 6 ):
         add( 'python', OK, 'Python %d.%d' % ( major, minor ) )

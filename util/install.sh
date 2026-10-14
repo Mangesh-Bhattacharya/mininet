@@ -908,7 +908,43 @@ function all {
     pox
     oftest
     cbench
+    offer_nonroot
     echo "Enjoy Mininet!"
+}
+
+# Mininet needs root, but the person using it does not have to be an
+# administrator: util/nonroot-setup.sh puts a user in the "mininet"
+# group and lets that group run Mininet's commands without a password.
+# Set it up with install.sh -u, or answer the question below.
+function nonroot {
+    local user=${SUDO_USER:-$USER}
+    local script
+    script="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )/nonroot-setup.sh"
+    echo "Setting up Mininet for $user without sudo..."
+    sudo "$script" --user "$user"
+}
+
+function offer_nonroot {
+    # Only ask when someone is there to answer (never in CI or a VM
+    # build): everywhere else the installer just says how to do it.
+    if [ ! -t 0 ]; then
+        echo
+        echo "Mininet needs root. To run it without typing sudo:"
+        echo "  sudo util/nonroot-setup.sh --user ${SUDO_USER:-$USER}"
+        return
+    fi
+    echo
+    echo "Mininet needs root privileges to build networks."
+    echo "  [1] Use sudo every time   (default, nothing to set up)"
+    echo "  [2] Let ${SUDO_USER:-$USER} run Mininet without typing sudo"
+    echo "      (adds them to a 'mininet' group, which grants root on"
+    echo "      this machine - the same bargain as the docker group)"
+    printf "Choose 1 or 2 [1]: "
+    read -r answer
+    case "$answer" in
+        2) nonroot;;
+        *) echo "Fine - run Mininet with sudo, e.g. sudo mn --test pingall";;
+    esac
 }
 
 # Restore disk space and remove sensitive files before shipping a VM.
@@ -963,7 +999,7 @@ exit 0
 }
 
 function usage {
-    printf '\nUsage: %s [-abcdefhikmnprtvVwxy03]\n\n' $(basename $0) >&2
+    printf '\nUsage: %s [-abcdefhikmnprtuvVwxy03]\n\n' $(basename $0) >&2
 
     printf 'This install script attempts to install useful packages\n' >&2
     printf 'for Mininet. It is tested on Ubuntu 22.04/24.04 and Debian 12/13\n' >&2
@@ -987,6 +1023,7 @@ function usage {
     printf -- ' -r: remove existing Open vSwitch packages\n' >&2
     printf -- ' -s <dir>: place dependency (S)ource/build trees in <dir>\n' >&2
     printf -- ' -t: complete o(T)her Mininet VM setup tasks\n' >&2
+    printf -- ' -u: let this (U)ser run Mininet without typing sudo\n' >&2
     printf -- ' -v: install Open (V)switch\n' >&2
     printf -- ' -V <version>: install a particular version of Open (V)switch on Ubuntu\n' >&2
     printf -- ' -w: install OpenFlow (W)ireshark dissector\n' >&2
@@ -1003,7 +1040,7 @@ if [ $# -eq 0 ]
 then
     all
 else
-    while getopts 'abcdefhikmnprs:tvV:wxy03' OPTION
+    while getopts 'abcdefhikmnprs:tuvV:wxy03' OPTION
     do
       case $OPTION in
       a)    all;;
@@ -1027,6 +1064,7 @@ else
             BUILD_DIR="$( cd -P "$OPTARG" && pwd )"; # get the full path
             echo "Dependency installation directory: $BUILD_DIR";;
       t)    vm_other;;
+      u)    nonroot;;
       v)    ovs;;
       V)    OVS_RELEASE=$OPTARG;
             ubuntuOvs;;

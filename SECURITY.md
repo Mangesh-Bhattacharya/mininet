@@ -36,6 +36,17 @@ update must pass the full test suite before it is used.
 | Every Monday 06:00 UTC | The full test suite runs on current runner images | [`tests.yml`](.github/workflows/tests.yml) |
 | As soon as an advisory is published | Dependabot security updates open a fix PR immediately (not only on Mondays) | repository settings |
 | Every pull request | Dependency review blocks new dependencies with known vulnerabilities (moderate or worse) | [`security.yml`](.github/workflows/security.yml) |
+| Whenever an update passes every check | It merges itself: no one has to click. Major version bumps are left for a human, with a comment saying why | [`auto-update.yml`](.github/workflows/auto-update.yml) |
+| Every 1st and 15th, 04:00 UTC (about every two weeks) | The deep audit: a **ClamAV malware scan** of the working tree and of the published image's filesystem, an **OSV-Scanner** dependency scan, a **gitleaks** secret scan of the whole git history, a Trivy scan of the image people actually pull, and a report mapping every control onto the **MITRE ATT&CK** technique it defends against. A finding opens an issue by itself | [`security-audit.yml`](.github/workflows/security-audit.yml) |
+
+A scheduled run that fails opens an issue of its own
+([`report-failure.yml`](.github/workflows/report-failure.yml)), so a
+patch cycle cannot stop quietly.
+
+Patching runs **weekly**, which is more often than the two-week
+maximum this project sets itself; the deep audit above runs every two
+weeks. What each control defends against, technique by technique:
+[docs/security/attack-coverage.md](docs/security/attack-coverage.md).
 
 ### Build and release safeguards
 
@@ -95,16 +106,23 @@ machine.
   you wrote or trust. YAML and JSON configs are data and are parsed
   safely.
 
-## Maintainer checklist
+## What is left for a person
 
-Automation opens the pull requests; a maintainer merges them:
+Updates that pass every check merge themselves, so an untouched
+repository still stays patched. A maintainer only deals with what the
+automation refuses to decide:
 
-1. Every Monday, review and merge the Dependabot PRs once CI is green.
-2. Check the Security tab for new code-scanning and Dependabot alerts.
-3. If the weekly image build fails its vulnerability scan, update the
-   affected package (or wait for Ubuntu's fix and re-run the workflow);
-   the previous, still-signed image stays published meanwhile.
+1. An issue opened by the fortnightly audit (malware, a vulnerable
+   dependency or a leaked secret).
+2. A major version update, which is never merged automatically.
+3. A weekly image build that fails its vulnerability scan: update the
+   affected package or wait for Ubuntu's fix and re-run the workflow.
+   The previous, still-signed image stays published meanwhile.
+4. New alerts on the Security tab that nothing else has closed.
 
-Repository settings that must stay enabled (Settings -> Code security):
-Dependabot alerts, Dependabot security updates, secret scanning with
-push protection, code scanning, and private vulnerability reporting.
+Repository settings this depends on: Dependabot alerts, Dependabot
+security updates, secret scanning with push protection, code scanning
+and private vulnerability reporting (Settings -> Code security); "Allow
+auto-merge" (Settings -> General); and the `master` ruleset, which
+requires a pull request with passing checks and blocks force-pushes, so
+nothing reaches `master` untested.

@@ -41,6 +41,9 @@ def check_config_and_validation( page, outdir, suffix ):
         "( '#graph g[data-kind=host]' ).length >= 3" )
     expect( page.locator( '#editor' ) ).to_have_value(
         re.compile( 'two-switch-lab' ) )
+    # The activity log says what the GUI did, from the first moment
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'Connected to mn-gui' )
     shot( page, outdir, 'gui-overview%s.png' % suffix )
 
     original = page.locator( '#editor' ).input_value()
@@ -114,6 +117,30 @@ def check_editor( page, outdir, suffix ):
     expect( page.locator( '#graph g[data-node=h5]' ) ).to_have_count( 0 )
     page.locator( 'button[data-tool=select]' ).click()
 
+    # The other two MiniEdit node kinds: a legacy router and a legacy
+    # switch. Both are written to the file; remove them again so the
+    # lab still pings end to end.
+    for tool, role, setting, name in (
+            ( 'router', 'router', 'router: true', 'r1' ),
+            ( 'lswitch', 'legacyswitch', 'legacy: true', 's3' ) ):
+        page.locator( 'button[data-tool=%s]' % tool ).click()
+        canvas.click( position={ 'x': box[ 'width' ] - 90,
+                                 'y': box[ 'height' ] - 70 } )
+        expect( page.locator( '#graph g[data-node=%s]' % name )
+                ).to_have_attribute( 'data-role', role )
+        expect( page.locator( '#editor' ) ).to_have_value(
+            re.compile( setting ) )
+        page.locator( 'button[data-tool=delete]' ).click()
+        page.locator( '#graph g[data-node=%s]' % name ).click()
+        expect( page.locator( '#graph g[data-node=%s]' % name )
+                ).to_have_count( 0 )
+
+    # The controller tool opens the network settings
+    page.locator( 'button[data-tool=controller]' ).click()
+    page.locator( '#graph g[data-kind=controller]' ).click()
+    expect( page.locator( '#props' ) ).to_contain_text( 'controller' )
+    page.locator( 'button[data-tool=select]' ).click()
+
     # Tidy up and save
     page.locator( '#btn-arrange' ).click()
     expect( page.locator( '#btn-save' ) ).to_be_enabled()
@@ -121,6 +148,41 @@ def check_editor( page, outdir, suffix ):
     expect( page.locator( '#notice' ) ).to_contain_text( 'Saved' )
     expect( page.locator( '#btn-save' ) ).to_be_disabled()
     expect( page.locator( '#issues li' ) ).to_have_count( 0 )
+
+
+def menu( page, name, item ):
+    "Open a menu bar menu and click one of its items"
+    page.locator( 'button[data-menu=%s]' % name ).click()
+    page.locator( '#menu-%s button[data-do=%s]' % ( name, item ) ).click()
+
+
+def check_menus( page, outdir, suffix ):
+    """The menu bar: network settings, export, and an undo that leaves
+       the lab exactly as it was"""
+    menu( page, 'help', 'about' )
+    expect( page.locator( '#info-dialog' ) ).to_be_visible()
+    expect( page.locator( '#info-body' ) ).to_contain_text( 'Lab file' )
+    page.locator( '#info-dialog button' ).click()
+
+    menu( page, 'edit', 'network' )
+    expect( page.locator( '#props' ) ).to_contain_text( 'Network and controller' )
+    expect( page.locator( '#prop-controller' ) ).to_have_value( 'default' )
+    shot( page, outdir, 'gui-menu%s.png' % suffix )
+
+    with page.expect_download() as download:
+        menu( page, 'file', 'export' )
+    assert download.value.suggested_filename.endswith( '.svg' ), \
+        download.value.suggested_filename
+
+    # Add a node, then undo it: the file must come back unchanged
+    before = page.locator( '#editor' ).input_value()
+    page.locator( 'button[data-tool=host]' ).click()
+    page.locator( '#graph' ).click( position={ 'x': 60, 'y': 60 } )
+    expect( page.locator( '#editor' ) ).not_to_have_value( before )
+    page.locator( 'button[data-tool=select]' ).click()
+    menu( page, 'edit', 'undo' )
+    expect( page.locator( '#editor' ) ).to_have_value( before )
+    expect( page.locator( '#btn-save' ) ).to_be_disabled()
 
 
 def wait_for( page, condition ):
@@ -143,9 +205,17 @@ def check_network( page, outdir, suffix ):
         "() => document.querySelectorAll"
         "( '#graph .halo[visibility=visible]' ).length >= 3" )
 
+    # Every command the lab ran is in the activity log, not only in the
+    # console tab
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'The network is running' )
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'ip -brief address' )
+
     page.locator( '#btn-pingall' ).click()
     expect( page.locator( '#ping-result' ) ).to_contain_text(
         'All hosts can reach each other', timeout=TIMEOUT )
+    expect( page.locator( '#activity-log' ) ).to_contain_text( 'Ping all' )
     expect( page.locator( '#ping-result td.no' ) ).to_have_count( 0 )
     expect( page.locator( '#ping-result' ) ).not_to_contain_text( 'null' )
     expect( page.locator( '#btn-pingall' ) ).to_be_enabled()
@@ -173,7 +243,10 @@ def check_network( page, outdir, suffix ):
 def run( browser, url, token, outdir, scheme, network, edit ):
     "One pass through the GUI in a colour scheme"
     suffix = '' if scheme == 'light' else '-dark'
-    context = browser.new_context( viewport={ 'width': 1440, 'height': 900 },
+    # Tall enough for the whole app shell - the work area scrolls
+    # inside the page, so a screenshot is one viewport
+    context = browser.new_context( viewport={ 'width': 1440,
+                                              'height': 1150 },
                                    color_scheme=scheme,
                                    device_scale_factor=1 )
     page = context.new_page()
@@ -195,6 +268,7 @@ def run( browser, url, token, outdir, scheme, network, edit ):
     check_config_and_validation( page, outdir, suffix )
     if edit:
         check_editor( page, outdir, suffix )
+        check_menus( page, outdir, suffix )
     if network:
         check_network( page, outdir, suffix )
     context.close()

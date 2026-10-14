@@ -1,0 +1,53 @@
+name: auto-update
+
+# Keeps the project patched without anyone clicking anything.
+#
+# Dependabot opens the updates (Actions, Python packages, the Ubuntu
+# base image digest) and the full matrix - tests, install, Docker build
+# with the Trivy gate, CodeQL, the GUI browser test - runs on each one.
+# This workflow turns on auto-merge, so GitHub merges the pull request
+# by itself once every required check has passed, and leaves anything
+# that fails, or any major version bump, for a human to look at.
+#
+# Nothing here merges code that has not passed CI: auto-merge waits for
+# the checks required by the master ruleset.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  dependabot:
+    name: Merge the update once it is green
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: What kind of update is this?
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Turn on auto-merge for patch, minor and security updates
+        if: |
+          steps.meta.outputs.update-type != 'version-update:semver-major'
+          || steps.meta.outputs.alert-state == 'OPEN'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR"
+      - name: Say why a major update was left alone
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-major'
+          && steps.meta.outputs.alert-state != 'OPEN'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR" --body "Major version update: not merged
+          automatically. Check the changelog, then merge it by hand."
