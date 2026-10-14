@@ -76,6 +76,7 @@ def check_config_and_validation( page, outdir, suffix ):
     page.locator( '#exec-form button[type=submit]' ).click( force=True )
     expect( page.locator( '#activity-log' ) ).to_contain_text(
         'The network is not running' )
+    shot( page, outdir, 'gui-activity%s.png' % suffix )
     page.locator( '#exec-cmd' ).fill( '' )
 
     page.locator( '#tab-guide' ).click()
