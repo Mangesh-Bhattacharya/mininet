@@ -69,7 +69,11 @@ def check_config_and_validation( page, outdir, suffix ):
     page.locator( '#tab-console' ).click()
     expect( page.locator( '#exec-cmd' ) ).to_be_enabled()
     page.locator( '#exec-cmd' ).fill( 'ip addr' )
-    page.locator( '#exec-form button[type=submit]' ).click()
+    # force: the button is aria-disabled, which Playwright reads as
+    # "not enabled" and waits out. A real browser delivers the click -
+    # that is what makes the button able to explain itself - so this
+    # is what a person pressing it actually does
+    page.locator( '#exec-form button[type=submit]' ).click( force=True )
     expect( page.locator( '#activity-log' ) ).to_contain_text(
         'The network is not running' )
     page.locator( '#exec-cmd' ).fill( '' )
