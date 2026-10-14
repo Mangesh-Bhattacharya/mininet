@@ -48,29 +48,38 @@ editor holds the file itself.
 
 ![Topology and configuration editor](images/gui-overview.png)
 
-**2. Edit it.** Every change is checked as you type. Mistakes are listed
+**2. Draw it.** The palette places devices, clicking two of them makes a
+link, and the **File / Edit / Run / Help** menus hold the rest: new lab,
+save, undo, auto-arrange, export the topology as an SVG.
+
+![The File menu open over the topology editor](images/gui-menu.png)
+
+**3. Edit it.** Every change is checked as you type. Mistakes are listed
 with hints, and Save stays disabled until the file is valid.
 
 ![Validation errors with hints](images/gui-validation.png)
 
-**3. Start the network and press Ping all.** Hosts turn green when the
+**4. Start the network and press Ping all.** Hosts turn green when the
 network runs, and the matrix shows which host can reach which.
 
 ![Ping matrix of a running network](images/gui-pingall.png)
 
-**4. Use the console.** Run any command on any host, or measure bandwidth
+**5. Use the console.** Run any command on any host, or measure bandwidth
 with iperf.
 
 ![Console with ping and iperf output](images/gui-console.png)
 
-**5. Not sure what to change?** The Guide tab lists every setting as
+**6. Not sure what to change?** The Guide tab lists every setting as
 *edit freely*, *advanced* or *do not edit*.
 
 ![The Guide tab](images/gui-guide.png)
 
-Dark mode follows your system setting:
+Dark mode follows your system setting. The same two screens again, in
+dark:
 
-![The GUI in dark mode](images/gui-pingall-dark.png)
+![The console tab in dark mode](images/gui-console-dark.png)
+
+![The Guide tab in dark mode](images/gui-guide-dark.png)
 
 Configs written as programs (Python, C, C++, C#, Java, Ruby, COBOL) are
 shown read-only: edit them in your editor, then press **Reload from
