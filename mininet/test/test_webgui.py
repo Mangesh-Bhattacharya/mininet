@@ -115,8 +115,11 @@ class FakeNet( object ):
         self.switches = [ FakeSwitch( s, s not in self.broken )
                           for s in topo.switches() ]
         self.controllers = [ FakeSwitch( 'c0' ) ]
-        self.nameToNode = { n.name: n
-                            for n in self.hosts + self.switches }
+        # Mininet registers hosts, switches and controllers alike, and
+        # the GUI offers all of them to run commands on
+        self.nameToNode = {
+            n.name: n
+            for n in self.hosts + self.switches + self.controllers }
         self.links = []
         for a, b in topo.links():
             nodes = ( self.nameToNode[ a ], self.nameToNode[ b ] )
@@ -472,7 +475,10 @@ class NetworkTests( GuiTestCase ):
         self.assertEqual( startup[ 0 ][ 'command' ], 'h1 ip -brief address' )
         status = self.api( 'GET', 'status' )
         self.assertTrue( status[ 'running' ] )
-        self.assertEqual( status[ 'nodes' ], [ 'h1', 'h2', 'h3' ] )
+        # Every node you can run a command on, as Mininet lists them:
+        # the controller and the switches as well as the hosts
+        self.assertEqual( status[ 'nodes' ],
+                          [ 'c0', 'h1', 'h2', 'h3', 's1', 's2' ] )
         code, _, _ = self.request( 'POST', '/api/start', {} )
         self.assertEqual( code, 409 )
         code, _, _ = self.request( 'POST', '/api/reload', {} )
