@@ -323,8 +323,9 @@ class LabSession( object ):
             if wait:
                 try:
                     seconds = min( float( wait ), 30.0 )
-                except ( TypeError, ValueError ):
-                    raise GuiError( 'wait must be a number of seconds' )
+                except ( TypeError, ValueError ) as exc:
+                    raise GuiError(
+                        'wait must be a number of seconds' ) from exc
                 # Switches take a moment to find the controller; give
                 # them that moment before reporting a failure
                 net.waitConnected( timeout=seconds )
@@ -363,7 +364,8 @@ class LabSession( object ):
                     'from': link.intf1.node.name, 'to': link.intf2.node.name,
                     'ok': ok,
                     'detail': ( '%s <-> %s is up' % ( link.intf1, link.intf2 )
-                                if ok else 'interface missing: %s' % status ) } )
+                                if ok
+                                else 'interface missing: %s' % status ) } )
             # A host with a working interface at the end of a broken
             # link has not connected to anything, so its links count
             cutOff = { name for link in links if not link[ 'ok' ]
