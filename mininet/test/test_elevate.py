@@ -70,6 +70,41 @@ class DecisionTests( unittest.TestCase ):
         self.check( False )
 
 
+class AdviceTests( unittest.TestCase ):
+    "What a machine that cannot run Mininet is told to do instead"
+
+    def testWslPath( self ):
+        "A Windows path is given the way WSL will understand it"
+        for windows, wsl in (
+                ( r'C:\labs\lab.yaml', '/mnt/c/labs/lab.yaml' ),
+                ( r'D:\My Labs\a b.yaml', '/mnt/d/My Labs/a b.yaml' ),
+                ( 'lab.yaml', 'lab.yaml' ),          # no drive, no change
+                ( '/mnt/c/already', '/mnt/c/already' ),
+                ( None, 'lab.yaml' ) ):
+            self.assertEqual( elevate.wslPath( windows ), wsl )
+
+    def testWindowsIsToldToInstallFirst( self ):
+        """The old advice handed over a command that cannot work: a
+           Windows install puts nothing inside WSL, so mn-config is not
+           there to run."""
+        with mock.patch.object( elevate.sys, 'platform', 'win32' ):
+            reason, hint = elevate.blocker( path=r'C:\labs\lab.yaml' )
+        self.assertIn( 'no Linux kernel', reason )
+        self.assertIn( 'install', hint.lower() )
+        # The path is the one WSL understands, not the Windows one
+        self.assertIn( '/mnt/c/labs/lab.yaml', hint )
+        self.assertNotIn( r'C:\labs', hint )
+        # and not the one-liner that hangs on a password prompt
+        self.assertNotIn( 'wsl sudo', hint )
+
+    def testMacIsNotToldAboutWsl( self ):
+        "macOS gets macOS advice"
+        with mock.patch.object( elevate.sys, 'platform', 'darwin' ):
+            reason, hint = elevate.blocker( path='/tmp/lab.yaml' )
+        self.assertIn( 'macOS', reason )
+        self.assertNotIn( 'WSL', hint )
+
+
 class HelperTests( unittest.TestCase ):
     "The pieces canElevate() is built from"
 

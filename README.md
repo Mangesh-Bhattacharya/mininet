@@ -102,9 +102,20 @@ each, and Save stays off until they are fixed.
        alt="Two problems listed under the editor, each with a hint, and a disabled Save button">
 </picture>
 
-Run starts the network. Ping all fills in a matrix of which host reaches
-which, and the Console tab gives you a shell on any host or an iperf
-measurement between two of them.
+Run starts the network, and the GUI then walks it the way the packets
+do: a signal goes from the controller out to each switch, then from the
+switches to what is plugged into them. Every device ends up with a green
+tick or a red cross, and every link is drawn green or red.
+
+The verdicts come from the live network, not from the drawing. A switch
+passes when Open vSwitch reports an OpenFlow session with the
+controller; a link passes when both of its interfaces exist; a host
+passes when its interface is up and its link is working. Whatever fails
+is named in the activity log with what to check.
+
+Ping all then fills in a matrix of which host reaches which and updates
+the hosts' marks to match, and the Console tab gives you a shell on any
+host or an iperf measurement between two of them.
 
 The strip along the bottom is the activity log: every command the lab
 ran, its output, and a suggested fix for each error. Pressing a button

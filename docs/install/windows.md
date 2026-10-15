@@ -121,12 +121,30 @@ mn-gui --config lab.yaml                 # the topology editor, in your browser
 ```
 
 `mn-gui` here edits and checks the file and draws the topology; **Run**
-needs Linux. Keep `lab.yaml` in a folder you share with WSL 2, Docker or
-your VM (options A-C) and run it there:
+needs Linux. To run the lab, install Mininet in WSL 2, Docker or a VM
+(options A to C above) and run it there. Installing it on Windows does
+not install it inside WSL: they are separate machines, each with their
+own packages.
+
+Then open a terminal in WSL and run the lab from there. Your Windows
+drives appear under `/mnt`, so `C:\labs\lab.yaml` is
+`/mnt/c/labs/lab.yaml`:
+
+```bash
+sudo mn-config run /mnt/c/labs/lab.yaml
+```
+
+You can do it from PowerShell in one line, but give the full Linux path
+and expect a password prompt:
 
 ```powershell
-wsl sudo mn-config run lab.yaml
+wsl -e sudo mn-config run /mnt/c/labs/lab.yaml
 ```
+
+If that prints `sudo: mn-config: command not found`, Mininet is not
+installed inside WSL yet: go back to option A. If it hangs with no
+output, sudo is waiting for a password that it cannot ask you for -
+run it from a terminal inside WSL instead.
 
 ---
 
@@ -140,3 +158,25 @@ running scripts in Linux, Git converted line endings. This repository's
 git config core.autocrlf input
 git rm -r --cached . ; git reset --hard
 ```
+
+**Clone inside WSL, do not copy a Windows clone into it.** Without
+Developer Mode, Git for Windows writes symbolic links as small text
+files, so `mininet/examples` ends up as an 11-byte file containing
+`../examples` instead of a link to the examples. Building from such a
+copy fails like this:
+
+```text
+ModuleNotFoundError: No module named 'mininet.examples'
+make: *** [Makefile:59: mnexec] Error 1
+```
+
+The Windows clone is still fine for editing labs and running `mn-gui`.
+For the Linux side, clone again from inside WSL:
+
+```bash
+git clone https://github.com/Mangesh-Bhattacharya/mininet.git
+cd mininet && util/install.sh -nv
+```
+
+(`git config --get core.symlinks` on the Windows clone says `false` when
+this applies.)

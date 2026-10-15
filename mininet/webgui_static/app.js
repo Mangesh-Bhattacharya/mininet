@@ -712,6 +712,38 @@ const DEVICE_NAMES = {
   router: 'router', legacyswitch: 'legacy switch',
 };
 
+// The box Cisco draws a switch as: a front face, a top face in
+// perspective, and a right-hand side, with arrows laid across the top
+function switchBox(g, x, y, arrows) {
+  g.append(svg('path', { class: 'disc',          // front
+    d: `M ${x - 21} ${y + 3} H ${x + 13} V ${y + 12} H ${x - 21} Z` }));
+  g.append(svg('path', { class: 'disc-side',     // right end
+    d: `M ${x + 13} ${y + 3} L ${x + 21} ${y - 6} V ${y + 3}`
+       + ` L ${x + 13} ${y + 12} Z` }));
+  g.append(svg('path', { class: 'disc-top',      // top
+    d: `M ${x - 21} ${y + 3} L ${x - 13} ${y - 6} H ${x + 21}`
+       + ` L ${x + 13} ${y + 3} Z` }));
+  // Two arrows pointing one way above two pointing the other, which is
+  // what the icon says: traffic crossing in both directions at once
+  const right = (x1, x2, yy) =>
+    `M ${x1} ${yy} H ${x2} M ${x2 - 2.6} ${yy - 2.4} L ${x2} ${yy}`
+    + ` L ${x2 - 2.6} ${yy + 2.4}`;
+  const left = (x1, x2, yy) =>
+    `M ${x1} ${yy} H ${x2} M ${x2 + 2.6} ${yy - 2.4} L ${x2} ${yy}`
+    + ` L ${x2 + 2.6} ${yy + 2.4}`;
+  if (arrows >= 4) {
+    g.append(svg('path', { class: 'arrow',
+      d: right(x - 13, x - 4, y - 3.5) + ' ' + right(x + 1, x + 10, y - 3.5) }));
+    g.append(svg('path', { class: 'arrow',
+      d: left(x + 10, x + 1, y + 0.5) + ' ' + left(x - 4, x - 13, y + 0.5) }));
+  } else {
+    g.append(svg('path', { class: 'arrow',
+      d: right(x - 10, x + 6, y - 3.5) }));
+    g.append(svg('path', { class: 'arrow',
+      d: left(x + 10, x - 6, y + 0.5) }));
+  }
+}
+
 function deviceIcon(kind, x, y) {
   const [ w, h ] = ICON_SIZE[kind];
   const g = svg('g', { class: 'icon ' + kind });
@@ -724,33 +756,29 @@ function deviceIcon(kind, x, y) {
     g.append(svg('path', { class: 'gloss', d: `M ${x - 15} ${y - 13} h 12 l -12 12 z` }));
     g.append(svg('rect', { class: 'case', x: x - 4.5, y: y + 11, width: 9, height: 5 }));
     g.append(svg('rect', { class: 'case', x: x - 13, y: y + 15, width: 26, height: 4, rx: 2 }));
-  } else if (kind === 'switch') {
-    g.append(svg('circle', { class: 'disc', cx: x, cy: y, r: 18 }));
-    g.append(svg('ellipse', { class: 'gloss', cx: x, cy: y - 7, rx: 12, ry: 6.5 }));
-    g.append(svg('path', {
-      class: 'arrow',
-      d: `M ${x - 10} ${y - 6} H ${x + 5} M ${x} ${y - 10.5} L ${x + 6} ${y - 6} L ${x} ${y - 1.5}`,
-    }));
-    g.append(svg('path', {
-      class: 'arrow',
-      d: `M ${x + 10} ${y + 6} H ${x - 5} M ${x} ${y + 1.5} L ${x - 6} ${y + 6} L ${x} ${y + 10.5}`,
-    }));
-  } else if (kind === 'legacyswitch') {
-    // a flat slab in perspective, like MiniEdit's legacy switch
-    g.append(svg('path', { class: 'disc',
-      d: `M ${x - 20} ${y + 4} H ${x + 12} L ${x + 20} ${y + 13} H ${x - 12} Z` }));
-    g.append(svg('path', { class: 'disc-top',
-      d: `M ${x - 20} ${y + 4} L ${x - 12} ${y - 5} H ${x + 20} L ${x + 12} ${y + 4} Z` }));
-    g.append(svg('path', { class: 'arrow',
-      d: `M ${x - 9} ${y + 8} H ${x + 5} M ${x + 1} ${y + 5} L ${x + 6} ${y + 8} L ${x + 1} ${y + 11}` }));
+  } else if (kind === 'switch' || kind === 'legacyswitch') {
+    // Cisco's switch: a flat box seen from above, with arrows across
+    // its top face. Four of them on a switch; two on a legacy switch,
+    // which is the simpler device.
+    switchBox(g, x, y, kind === 'switch' ? 4 : 2);
   } else if (kind === 'router') {
-    // the classic round router with its crossing arrows
-    g.append(svg('ellipse', { class: 'disc', cx: x, cy: y, rx: 19, ry: 13 }));
-    g.append(svg('ellipse', { class: 'gloss', cx: x, cy: y - 5, rx: 12, ry: 4.5 }));
+    // Cisco's router: a cylinder with arrows pointing four ways,
+    // because a router is the thing that chooses a direction
+    g.append(svg('path', { class: 'disc',
+      d: `M ${x - 19} ${y - 3} V ${y + 3} A 19 8 0 0 0 ${x + 19} ${y + 3}`
+         + ` V ${y - 3} Z` }));
+    g.append(svg('ellipse', { class: 'disc-top', cx: x, cy: y - 3,
+                              rx: 19, ry: 8 }));
+    g.append(svg('ellipse', { class: 'gloss', cx: x, cy: y - 5,
+                              rx: 11, ry: 3.4 }));
     g.append(svg('path', { class: 'arrow',
-      d: `M ${x - 10} ${y - 3} H ${x + 4} M ${x} ${y - 7} L ${x + 5} ${y - 3} L ${x} ${y + 1}` }));
+      d: `M ${x - 11} ${y - 3} H ${x + 11}`
+         + ` M ${x + 7.5} ${y - 6} L ${x + 11} ${y - 3} L ${x + 7.5} ${y}`
+         + ` M ${x - 7.5} ${y - 6} L ${x - 11} ${y - 3} L ${x - 7.5} ${y}` }));
     g.append(svg('path', { class: 'arrow',
-      d: `M ${x + 10} ${y + 4} H ${x - 4} M ${x} ${y} L ${x - 5} ${y + 4} L ${x} ${y + 8}` }));
+      d: `M ${x} ${y - 9.5} V ${y + 3.5}`
+         + ` M ${x - 3} ${y - 6.5} L ${x} ${y - 9.5} L ${x + 3} ${y - 6.5}`
+         + ` M ${x - 3} ${y + 0.5} L ${x} ${y + 3.5} L ${x + 3} ${y + 0.5}` }));
   } else {
     g.append(svg('rect', { class: 'case', x: x - 14, y: y - 22, width: 28, height: 41, rx: 3 }));
     for (const dy of [ -17, -8, 1 ]) {
@@ -794,6 +822,8 @@ function drawGraph(graph) {
   for (const [a, b, link] of edges) {
     const line = svg('line', {
       x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+      // Its two ends, so the bring-up walk can find this line again
+      'data-ends': link.from + '\u0000' + link.to,
       class: 'edge' + (link.control ? ' control' : '') + (isSelectedLink(link) ? ' selected' : ''),
     });
     if (!link.control) {
@@ -940,6 +970,164 @@ function redrawEdges() {
 function markRunning(running) {
   for (const halo of $('graph').querySelectorAll('.halo')) {
     halo.setAttribute('visibility', running ? 'visible' : 'hidden');
+  }
+  if (!running) clearMarks();
+}
+
+// ------------------------------------------------------- bringing it up
+
+// After the network starts, the GUI walks the topology the way the
+// packets do: out from the controller to each switch, then from the
+// switches to the hosts. Every device ends up with a tick or a cross.
+// None of it is decoration - each verdict comes from the live network
+// (POST /api/connectivity), and the drawer says what was checked.
+
+const STEP_MS = 420;        // one hop of the travelling signal
+const SETTLE_MS = 120;      // pause between a hop and its verdict
+
+function stillTheSameGraph(nodes) {
+  // Someone may have edited or stopped while the walk was running
+  return nodes.every((name) => state.positions.has(name));
+}
+
+function sleep(ms) {
+  return new Promise((done) => setTimeout(done, ms));
+}
+
+function reducedMotion() {
+  return window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function edgeLine(from, to) {
+  for (const line of $('graph').querySelectorAll('line.edge')) {
+    const ends = line.dataset.ends;
+    if (ends === from + '\u0000' + to || ends === to + '\u0000' + from) {
+      return line;
+    }
+  }
+  return null;
+}
+
+// A dot that runs from one device to the other, like a packet
+function sendSignal(from, to, ok) {
+  const a = state.positions.get(from), b = state.positions.get(to);
+  if (!a || !b || reducedMotion()) return Promise.resolve();
+  const dot = svg('circle', { class: 'signal' + (ok ? '' : ' bad'), r: 5,
+                              cx: a.x, cy: a.y });
+  $('graph').append(dot);
+  const move = dot.animate(
+    [ { transform: 'translate(0px, 0px)' },
+      { transform: `translate(${b.x - a.x}px, ${b.y - a.y}px)` } ],
+    { duration: STEP_MS, easing: 'cubic-bezier(.4,0,.5,1)' });
+  return move.finished.catch(() => {}).then(() => dot.remove());
+}
+
+function markLink(from, to, ok) {
+  const line = edgeLine(from, to);
+  if (line) line.classList.add(ok ? 'up' : 'down');
+}
+
+// The tick or cross that stays on the device afterwards
+function markNode(name, ok, detail) {
+  const group = $('graph').querySelector(`g[data-node="${CSS.escape(name)}"]`);
+  if (!group) return;
+  const old = group.querySelector('.verdict');
+  if (old) old.remove();
+  const hit = group.querySelector('.hit');
+  const x = Number(hit.getAttribute('x')) + Number(hit.getAttribute('width'));
+  const y = Number(hit.getAttribute('y'));
+  const badge = svg('g', { class: 'verdict ' + (ok ? 'ok' : 'bad') });
+  badge.append(svg('circle', { cx: x, cy: y, r: 9 }));
+  badge.append(svg('path', {
+    class: 'tick',
+    d: ok ? `M${x - 4.5} ${y} l3 3.2 l6 -6.6`
+      : `M${x - 3.6} ${y - 3.6} l7.2 7.2 M${x + 3.6} ${y - 3.6} l-7.2 7.2`,
+  }));
+  badge.append(svg('title', {}, `${name}: ${detail}`));
+  group.append(badge);
+}
+
+function clearMarks() {
+  for (const badge of $('graph').querySelectorAll('.verdict')) badge.remove();
+  for (const line of $('graph').querySelectorAll('line.edge')) {
+    line.classList.remove('up', 'down');
+  }
+}
+
+// Walk the topology outwards from the controller, a hop at a time
+async function showBringUp(report) {
+  clearMarks();
+  const byName = new Map(report.nodes.map((n) => [n.name, n]));
+  const kindOf = (name) => {
+    const node = (state.graph.nodes || []).find((n) => n.id === name);
+    return node ? (node.role || node.kind) : 'host';
+  };
+  const control = report.links.filter((l) => kindOf(l.from) === 'controller');
+  const data = report.links.filter((l) => kindOf(l.from) !== 'controller');
+
+  // Hop 1: the controller reaching each switch
+  for (const link of control) {
+    if (!stillTheSameGraph([link.from, link.to])) return;
+    await sendSignal(link.from, link.to, link.ok);
+    markLink(link.from, link.to, link.ok);
+    const node = byName.get(link.to);
+    if (node) {
+      markNode(node.name, node.ok, node.detail);
+      logEvent(node.ok ? 'ok' : 'error',
+               `${node.name}: ${node.ok ? 'connected' : 'not connected'}`,
+               node.detail,
+               node.ok ? '' : 'The switch has no controller session. Check '
+                 + 'network.controller in the lab file, or use a legacy '
+                 + 'switch, which needs no controller.');
+    }
+    await sleep(SETTLE_MS);
+  }
+
+  // Hop 2: each switch reaching what is plugged into it
+  for (const link of data) {
+    if (!stillTheSameGraph([link.from, link.to])) return;
+    await sendSignal(link.from, link.to, link.ok);
+    markLink(link.from, link.to, link.ok);
+    if (!link.ok) {
+      logEvent('error', `${link.from} <-> ${link.to}: link down`, link.detail,
+               'One end has no interface. Stop the network and check that '
+               + 'link in the lab file.');
+    }
+    await sleep(SETTLE_MS / 2);
+  }
+
+  // Then the verdict on every device the walk did not already stamp
+  for (const node of report.nodes) {
+    if (kindOf(node.name) === 'switch') continue;
+    markNode(node.name, node.ok, node.detail);
+    if (!node.ok) {
+      logEvent('error', `${node.name} did not come up`, node.detail,
+               kindOf(node.name) === 'controller'
+                 ? 'A switch never opened a session with it; the switch '
+                   + 'carrying a cross is the one to look at.'
+                 : 'Its interface is missing or the link out of it is '
+                   + 'down. Check that device’s links in the lab file.');
+    }
+  }
+  const bad = report.nodes.filter((n) => !n.ok).map((n) => n.name);
+  logEvent(report.ok ? 'ok' : 'warn',
+           report.ok ? 'Every device came up'
+             : `${bad.length} device(s) did not come up: ${bad.join(', ')}`,
+           null,
+           report.ok ? '' : 'The red crosses show which. Press Ping all to '
+             + 'see what that costs in reachability.');
+}
+
+// Ping all knows something the interfaces do not: whether a host can
+// actually be reached. Let it have the last word on the hosts.
+function markFromPing(result) {
+  for (const row of result.rows) {
+    const reached = row.reached.filter((r) => r !== null);
+    const ok = reached.length > 0 && reached.every(Boolean);
+    const missed = result.hosts.filter((h, i) => row.reached[i] === false);
+    markNode(row.host, ok, ok ? 'reaches every other host'
+      : 'cannot reach ' + missed.join(', '));
   }
 }
 
@@ -1259,6 +1447,12 @@ function wire() {
     for (const item of result.startup) appendConsole(item.command, item.output);
     logEvent('ok', 'The network is running');
     notify('Network started. Try Ping all, or run commands in the Console tab.');
+    // Then walk the topology and show what actually came up
+    await refreshStatus().catch(() => {});
+    logEvent('step', 'Checking what came up',
+             'controller to switches, then switches to hosts');
+    const report = await api('POST', 'connectivity', { wait: 10 });
+    await showBringUp(report);
   }, 'Run network'));
   $('btn-stop').addEventListener('click', (e) => action(e.currentTarget, async () => {
     await api('POST', 'stop');
@@ -1267,6 +1461,7 @@ function wire() {
   $('btn-pingall').addEventListener('click', (e) => action(e.currentTarget, async () => {
     const result = await api('POST', 'pingall');
     showPing(result);
+    markFromPing(result);
     logEvent(result.loss ? 'warn' : 'ok',
              `Ping all: ${result.loss}% of pings lost`, null,
              result.loss ? 'The Results tab shows which pairs fail; a '

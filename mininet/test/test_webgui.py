@@ -36,6 +36,11 @@ class FakeNode( object ):
     def __init__( self, name, ip ):
         self.name = name
         self.ip = ip
+        self.intfs = []
+
+    def intfList( self ):
+        "Interfaces, as Mininet's Node.intfList gives them"
+        return self.intfs
 
     def IP( self ):  # pylint: disable=invalid-name
         "Address"
@@ -55,15 +60,81 @@ class FakeNode( object ):
         return subprocess.Popen( args, **kwargs )
 
 
+class FakeIntf( object ):
+    "Just enough of a Mininet interface"
+
+    def __init__( self, name, node, up=True ):
+        self.name = name
+        self.node = node
+        self.up = up
+
+    def status( self ):
+        "Same two answers Mininet's Intf.status gives"
+        return 'OK' if self.up else 'MISSING'
+
+    def __str__( self ):
+        return self.name
+
+
+class FakeLink( object ):
+    "Just enough of a Mininet link"
+
+    def __init__( self, intf1, intf2 ):
+        self.intf1, self.intf2 = intf1, intf2
+
+    def status( self ):
+        "Same string Mininet's Link.status gives"
+        return '(%s %s)' % ( self.intf1.status(), self.intf2.status() )
+
+
+class FakeSwitch( object ):
+    "Just enough of a Mininet switch"
+
+    def __init__( self, name, connected=True, failMode='secure' ):
+        self.name = name
+        self.isConnected = connected
+        self.failMode = failMode
+
+    def connected( self ):
+        "Is the OpenFlow session up?"
+        return self.isConnected
+
+
 class FakeNet( object ):
-    "Just enough of a Mininet network"
+    """Just enough of a Mininet network.
+
+       broken: names of devices that should come up unhappy, so the
+       tests can check the crosses as well as the ticks."""
+
+    broken = ()
 
     def __init__( self, cfg ):
         topo = labconfig.buildTopo( cfg )
         self.hosts = [ FakeNode( h, '10.0.0.%d' % ( i + 1 ) )
                        for i, h in enumerate( topo.hosts() ) ]
-        self.nameToNode = { h.name: h for h in self.hosts }
+        self.switches = [ FakeSwitch( s, s not in self.broken )
+                          for s in topo.switches() ]
+        self.controllers = [ FakeSwitch( 'c0' ) ]
+        # Mininet registers hosts, switches and controllers alike, and
+        # the GUI offers all of them to run commands on
+        self.nameToNode = {
+            n.name: n
+            for n in self.hosts + self.switches + self.controllers }
+        self.links = []
+        for a, b in topo.links():
+            nodes = ( self.nameToNode[ a ], self.nameToNode[ b ] )
+            intfs = [ FakeIntf( '%s-eth0' % n.name, n,
+                                n.name not in self.broken )
+                      for n in nodes ]
+            self.links.append( FakeLink( *intfs ) )
+            for node, intf in zip( nodes, intfs ):
+                node.intfs = getattr( node, 'intfs', [] ) + [ intf ]
         self.started = self.stopped = False
+
+    def waitConnected( self, timeout=None, delay=.5 ):
+        "Nothing to wait for: the fake switches answer at once"
+        assert delay
+        return all( s.connected() for s in self.switches ) or timeout is None
 
     def start( self ):
         "Start"
@@ -404,7 +475,10 @@ class NetworkTests( GuiTestCase ):
         self.assertEqual( startup[ 0 ][ 'command' ], 'h1 ip -brief address' )
         status = self.api( 'GET', 'status' )
         self.assertTrue( status[ 'running' ] )
-        self.assertEqual( status[ 'nodes' ], [ 'h1', 'h2', 'h3' ] )
+        # Every node you can run a command on, as Mininet lists them:
+        # the controller and the switches as well as the hosts
+        self.assertEqual( status[ 'nodes' ],
+                          [ 'c0', 'h1', 'h2', 'h3', 's1', 's2' ] )
         code, _, _ = self.request( 'POST', '/api/start', {} )
         self.assertEqual( code, 409 )
         code, _, _ = self.request( 'POST', '/api/reload', {} )
@@ -438,6 +512,46 @@ class NetworkTests( GuiTestCase ):
         self.assertTrue( net.stopped )
         self.assertFalse( self.api( 'GET', 'status' )[ 'running' ] )
         status, _, _ = self.request( 'POST', '/api/pingall', {} )
+        self.assertEqual( status, 409 )
+
+    def testConnectivitySaysWhatCameUp( self ):
+        "Every device and every link reports, and all of it is good"
+        self.api( 'POST', 'start', {} )
+        report = self.api( 'POST', 'connectivity', { 'wait': 5 } )
+        self.assertTrue( report[ 'ok' ] )
+        verdicts = { n[ 'name' ]: n for n in report[ 'nodes' ] }
+        self.assertEqual( sorted( verdicts ),
+                          [ 'c0', 'h1', 'h2', 'h3', 's1', 's2' ] )
+        self.assertTrue( all( n[ 'ok' ] for n in verdicts.values() ) )
+        self.assertIn( 'OpenFlow session', verdicts[ 's1' ][ 'detail' ] )
+        self.assertIn( '10.0.0.1', verdicts[ 'h1' ][ 'detail' ] )
+        # A control link per switch, and the lab's own links
+        control = [ l for l in report[ 'links' ] if l[ 'from' ] == 'c0' ]
+        self.assertEqual( sorted( l[ 'to' ] for l in control ),
+                          [ 's1', 's2' ] )
+        self.assertTrue( all( l[ 'ok' ] for l in report[ 'links' ] ) )
+        self.api( 'POST', 'stop', {} )
+
+    def testConnectivityNamesWhatDidNot( self ):
+        "A switch that never found the controller comes back as a cross"
+        with mock.patch.object( FakeNet, 'broken', ( 's2', ) ):
+            self.api( 'POST', 'start', {} )
+            report = self.api( 'POST', 'connectivity', {} )
+        self.assertFalse( report[ 'ok' ] )
+        verdicts = { n[ 'name' ]: n for n in report[ 'nodes' ] }
+        self.assertTrue( verdicts[ 's1' ][ 'ok' ] )
+        self.assertFalse( verdicts[ 's2' ][ 'ok' ] )
+        self.assertIn( 'no OpenFlow session', verdicts[ 's2' ][ 'detail' ] )
+        # The controller is only as good as the switches that found it
+        self.assertFalse( verdicts[ 'c0' ][ 'ok' ] )
+        # ...and the hosts hanging off s2 lost their interfaces with it
+        down = [ l for l in report[ 'links' ] if not l[ 'ok' ] ]
+        self.assertTrue( down, report[ 'links' ] )
+        self.api( 'POST', 'stop', {} )
+
+    def testConnectivityNeedsARunningNetwork( self ):
+        "Nothing to report before Run is pressed"
+        status, _, _ = self.request( 'POST', '/api/connectivity', {} )
         self.assertEqual( status, 409 )
 
     def testCommandTimeout( self ):

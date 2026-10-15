@@ -221,6 +221,22 @@ def check_network( page, outdir, suffix ):
         "() => document.querySelectorAll"
         "( '#graph .halo[visibility=visible]' ).length >= 3" )
 
+    # The GUI then walks the topology out from the controller and puts
+    # a tick on every device that came up. On a lab that works, that
+    # is all of them, and no crosses.
+    page.wait_for_function(
+        "() => document.querySelectorAll( '#graph .verdict.ok' ).length"
+        " >= 5", timeout=TIMEOUT )
+    expect( page.locator( '#graph .verdict.bad' ) ).to_have_count( 0 )
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'Every device came up' )
+    expect( page.locator( '#activity-log' ) ).to_contain_text(
+        'OpenFlow session' )
+    # Links the walk proved are drawn as up, none as down
+    assert page.locator( '#graph line.edge.up' ).count() >= 3
+    expect( page.locator( '#graph line.edge.down' ) ).to_have_count( 0 )
+    shot( page, outdir, 'gui-bringup%s.png' % suffix )
+
     # Every command the lab ran is in the activity log, not only in the
     # console tab
     expect( page.locator( '#activity-log' ) ).to_contain_text(

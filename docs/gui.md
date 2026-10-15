@@ -59,17 +59,33 @@ with hints, and Save stays disabled until the file is valid.
 
 ![Validation errors with hints](images/gui-validation.png)
 
-**4. Start the network and press Ping all.** Hosts turn green when the
-network runs, and the matrix shows which host can reach which.
+**4. Press Run.** The GUI then walks the topology the way the packets
+do: a signal goes out from the controller to each switch, then from the
+switches to whatever is plugged into them. Each device ends up with a
+green tick or a red cross, and each link is drawn green if it is up or
+red if it is not.
+
+None of that is decoration. The ticks come from the live network: a
+switch passes when Open vSwitch reports an OpenFlow session with the
+controller (a standalone switch needs none, and says so), a link passes
+when both of its interfaces exist, and a host passes when its interface
+is up and the link out of it is working. Anything that fails is written
+into the activity log with what to check. The devices and ports Cisco
+draws as a box with crossing arrows (a switch) or a cylinder with
+arrows pointing four ways (a router) use those same symbols here.
+
+**5. Press Ping all.** The matrix shows which host can reach which, and
+the hosts' ticks are updated to match: a host that cannot reach every
+other one gets a cross, with the names of the ones it missed.
 
 ![Ping matrix of a running network](images/gui-pingall.png)
 
-**5. Use the console.** Run any command on any host, or measure bandwidth
+**6. Use the console.** Run any command on any host, or measure bandwidth
 with iperf.
 
 ![Console with ping and iperf output](images/gui-console.png)
 
-**6. Not sure what to change?** The Guide tab lists every setting as
+**7. Not sure what to change?** The Guide tab lists every setting as
 *edit freely*, *advanced* or *do not edit*.
 
 ![The Guide tab](images/gui-guide.png)
