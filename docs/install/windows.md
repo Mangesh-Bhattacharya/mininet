@@ -158,3 +158,25 @@ running scripts in Linux, Git converted line endings. This repository's
 git config core.autocrlf input
 git rm -r --cached . ; git reset --hard
 ```
+
+**Clone inside WSL, do not copy a Windows clone into it.** Without
+Developer Mode, Git for Windows writes symbolic links as small text
+files, so `mininet/examples` ends up as an 11-byte file containing
+`../examples` instead of a link to the examples. Building from such a
+copy fails like this:
+
+```text
+ModuleNotFoundError: No module named 'mininet.examples'
+make: *** [Makefile:59: mnexec] Error 1
+```
+
+The Windows clone is still fine for editing labs and running `mn-gui`.
+For the Linux side, clone again from inside WSL:
+
+```bash
+git clone https://github.com/Mangesh-Bhattacharya/mininet.git
+cd mininet && util/install.sh -nv
+```
+
+(`git config --get core.symlinks` on the Windows clone says `false` when
+this applies.)

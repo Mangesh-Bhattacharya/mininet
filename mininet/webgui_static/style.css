@@ -262,8 +262,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   filter: drop-shadow(0 0 5px var(--ok));
 }
 #graph .signal.bad { fill: var(--bad); filter: drop-shadow(0 0 5px var(--bad)); }
-#graph .edge.up { stroke: var(--ok); }
-#graph .edge.down { stroke: var(--bad); stroke-dasharray: 6 4; }
+/* line.edge, not .edge: the control-link colour is set further down
+   the file and would otherwise win over these */
+#graph line.edge.up { stroke: var(--ok); }
+#graph line.edge.down { stroke: var(--bad); stroke-dasharray: 6 4; }
 #graph .verdict circle { stroke: var(--canvas); stroke-width: 1.5; }
 #graph .verdict .tick { fill: none; stroke: #fff; stroke-width: 2.1;
                         stroke-linecap: round; stroke-linejoin: round; }
