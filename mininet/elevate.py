@@ -60,12 +60,26 @@ def setupHint():
     return SETUP_HINT % userName()
 
 
-# Where to run a lab when this computer cannot, by platform
+def wslPath( path ):
+    """A Windows path as WSL sees it: C:\\labs\\lab.yaml becomes
+       /mnt/c/labs/lab.yaml. Anything that is not a drive letter path
+       is left alone."""
+    path = ( path or 'lab.yaml' ).replace( '\\', '/' )
+    if len( path ) > 2 and path[ 1 ] == ':':
+        return '/mnt/%s%s' % ( path[ 0 ].lower(), path[ 2: ] )
+    return path
+
+
+# Where to run a lab when this computer cannot, by platform.
+# The advice has to name the install first: a Windows user has Mininet
+# on Windows, where it can edit labs, and nothing inside WSL yet, so a
+# bare "run it in WSL" is a command that cannot work.
 ELSEWHERE = {
     'win32': ( 'Windows has no Linux kernel',
-               'Design and check labs here, then run them in WSL 2 '
-               '(wsl sudo mn-config run %(file)s), in Docker Desktop, '
-               'or in a VM - docs/install/windows.md.' ),
+               'Design and check labs here. To run one, install Mininet '
+               'in WSL 2 or Docker Desktop first - docs/install/'
+               'windows.md - then, from a terminal inside WSL: '
+               'sudo mn-config run %(wsl)s' ),
     'darwin': ( 'macOS has no Linux kernel',
                 'Design and check labs here, then run them in a '
                 'container (scripts/mininet-docker.sh) or a Linux VM '
@@ -87,9 +101,12 @@ def blocker( action=None, path=None, what='this command', root=None ):
        Pass root when the caller tracks privileges itself."""
     if not isLinux():
         reason, hint = ELSEWHERE.get( sys.platform, OTHER_PLATFORM )
-        if '%(file)s' in hint:
+        if '%(' in hint:
+            # The path the reader has to type is the one that machine
+            # will understand, not the one this one uses
             hint = hint % { 'file': os.path.basename( path ) if path
-                            else 'lab.yaml' }
+                            else 'lab.yaml',
+                            'wsl': wslPath( path ) }
         return reason, hint
     if not ( isRoot() if root is None else root ):
         return ( '%s is not running as root' % what,

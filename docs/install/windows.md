@@ -121,12 +121,30 @@ mn-gui --config lab.yaml                 # the topology editor, in your browser
 ```
 
 `mn-gui` here edits and checks the file and draws the topology; **Run**
-needs Linux. Keep `lab.yaml` in a folder you share with WSL 2, Docker or
-your VM (options A-C) and run it there:
+needs Linux. To run the lab, install Mininet in WSL 2, Docker or a VM
+(options A to C above) and run it there. Installing it on Windows does
+not install it inside WSL: they are separate machines, each with their
+own packages.
+
+Then open a terminal in WSL and run the lab from there. Your Windows
+drives appear under `/mnt`, so `C:\labs\lab.yaml` is
+`/mnt/c/labs/lab.yaml`:
+
+```bash
+sudo mn-config run /mnt/c/labs/lab.yaml
+```
+
+You can do it from PowerShell in one line, but give the full Linux path
+and expect a password prompt:
 
 ```powershell
-wsl sudo mn-config run lab.yaml
+wsl -e sudo mn-config run /mnt/c/labs/lab.yaml
 ```
+
+If that prints `sudo: mn-config: command not found`, Mininet is not
+installed inside WSL yet: go back to option A. If it hangs with no
+output, sudo is waiting for a password that it cannot ask you for -
+run it from a terminal inside WSL instead.
 
 ---
 
