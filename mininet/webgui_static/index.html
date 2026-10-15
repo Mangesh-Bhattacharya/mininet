@@ -101,32 +101,39 @@
           </button>
           <button class="tool" data-tool="switch" aria-pressed="false"
                   title="Add a switch (S)" type="button">
+            <!-- Cisco's switch: a flat box with traffic crossing it -->
             <svg viewBox="0 0 32 32" aria-hidden="true">
-              <circle class="disc" cx="16" cy="16" r="13"/>
-              <ellipse class="gloss" cx="16" cy="11" rx="9" ry="5"/>
-              <path class="arrow" d="M9 12h9m-4-4l5 4-5 4"/>
-              <path class="arrow" d="M23 21h-9m4 4l-5-4 5-4"/>
+              <path class="disc" d="M3 18h20v7H3z"/>
+              <path class="disc-side" d="M23 18l6-6v7l-6 6z"/>
+              <path class="disc-top" d="M3 18l6-6h20l-6 6z"/>
+              <path class="arrow" d="M9 14.2h10m-2.5-2.3L19 14.2l-2.5 2.3"/>
+              <path class="arrow" d="M22 16.9H12m2.5-2.3L12 16.9l2.5 2.3"/>
             </svg>
             <span class="sr">Switch</span>
           </button>
           <button class="tool" data-tool="lswitch" aria-pressed="false"
                   title="Add a legacy switch: a learning switch with no controller"
                   type="button">
+            <!-- The same box, flatter and with one pair of arrows:
+                 a plain switch that answers to no controller -->
             <svg viewBox="0 0 32 32" aria-hidden="true">
-              <path class="disc" d="M7 20h18l-5 6H2z"/>
-              <path class="disc-top" d="M7 20L12 14h18l-5 6z"/>
-              <path class="arrow" d="M12 22.5h8m-3-1.5l3 1.5-3 1.5"/>
+              <path class="disc" d="M3 19h20v5H3z"/>
+              <path class="disc-side" d="M23 19l6-5v5l-6 5z"/>
+              <path class="disc-top" d="M3 19l6-5h20l-6 5z"/>
+              <path class="arrow" d="M9 16.5h8m-2.5-2L17 16.5l-2.5 2"/>
             </svg>
             <span class="sr">Legacy switch</span>
           </button>
           <button class="tool" data-tool="router" aria-pressed="false"
                   title="Add a legacy router: a host that forwards IPv4"
                   type="button">
+            <!-- Cisco's router: a cylinder with arrows four ways -->
             <svg viewBox="0 0 32 32" aria-hidden="true">
-              <ellipse class="disc" cx="16" cy="16" rx="13" ry="9"/>
-              <ellipse class="gloss" cx="16" cy="12.5" rx="8" ry="3.5"/>
-              <path class="arrow" d="M9 14h7m-2.5-2.5L16 14l-2.5 2.5"/>
-              <path class="arrow" d="M23 18h-7m2.5 2.5L16 18l2.5-2.5"/>
+              <path class="disc" d="M3 15v4a13 6 0 0 0 26 0v-4z"/>
+              <ellipse class="disc-top" cx="16" cy="15" rx="13" ry="6"/>
+              <ellipse class="gloss" cx="16" cy="13.5" rx="7" ry="2.4"/>
+              <path class="arrow" d="M8 15h16m-2.5-2.5L24 15l-2.5 2.5M10.5 12.5L8 15l2.5 2.5"/>
+              <path class="arrow" d="M16 10.5v9m-2.5-6.5L16 10.5l2.5 2.5m-5 4L16 19.5l2.5-2.5"/>
             </svg>
             <span class="sr">Legacy router</span>
           </button>

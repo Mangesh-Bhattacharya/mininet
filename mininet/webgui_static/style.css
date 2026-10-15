@@ -28,6 +28,7 @@
   --switch: #2f7fd1;
   --switch-top: #4f9ae4;
   --switch-edge: #1d5ea0;
+  --switch-side: #2569ad;
   --ctrl: #aab3c1;
   --ctrl-edge: #78828f;
   --code-bg: #f1f3f7;
@@ -66,6 +67,7 @@
     --switch: #3b8fe0;
     --switch-top: #5aa6ea;
     --switch-edge: #2a6ba9;
+    --switch-side: #317ac2;
     --ctrl: #7f8a9c;
     --ctrl-edge: #5c6577;
     --code-bg: #0c1117;
@@ -211,6 +213,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .palette .tool .glyph-fill { fill: var(--text); }
 .palette .tool .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
 .palette .tool .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
+.palette .tool .disc-side { fill: var(--switch-side); stroke: var(--switch-edge); stroke-width: 1.2; }
 .palette .tool .gloss { fill: #fff; opacity: 0.18; }
 .palette .tool .slot { fill: var(--dev-screen); opacity: .8; }
 .palette .tool .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -246,11 +249,38 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 #graph .icon .screen { fill: var(--dev-screen); }
 #graph .icon .disc { fill: var(--switch); stroke: var(--switch-edge); stroke-width: 1.2; }
 #graph .icon .disc-top { fill: var(--switch-top); stroke: var(--switch-edge); stroke-width: 1.2; }
+#graph .icon .disc-side { fill: var(--switch-side); stroke: var(--switch-edge); stroke-width: 1.2; }
 #graph .node.clickable { cursor: pointer; }
 #graph .icon .gloss { fill: #fff; opacity: 0.16; }
 #graph .icon .arrow { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #graph .icon .slot { fill: var(--dev-screen); opacity: .8; }
 #graph .icon .led { fill: var(--ok); }
+/* Bringing the network up: a signal runs along each link, then the
+   device keeps a tick or a cross saying whether it came up */
+#graph .signal {
+  fill: var(--ok); stroke: var(--canvas); stroke-width: 1.5;
+  filter: drop-shadow(0 0 5px var(--ok));
+}
+#graph .signal.bad { fill: var(--bad); filter: drop-shadow(0 0 5px var(--bad)); }
+#graph .edge.up { stroke: var(--ok); }
+#graph .edge.down { stroke: var(--bad); stroke-dasharray: 6 4; }
+#graph .verdict circle { stroke: var(--canvas); stroke-width: 1.5; }
+#graph .verdict .tick { fill: none; stroke: #fff; stroke-width: 2.1;
+                        stroke-linecap: round; stroke-linejoin: round; }
+#graph .verdict.ok circle { fill: var(--ok); }
+#graph .verdict.bad circle { fill: var(--bad); }
+#graph .verdict {
+  animation: verdict-in .22s ease-out;
+  transform-box: fill-box; transform-origin: center;
+}
+@keyframes verdict-in {
+  from { opacity: 0; transform: scale(.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #graph .verdict { animation: none; }
+}
+
 #graph .node.selected .halo { visibility: visible !important; stroke: var(--accent); stroke-width: 2.5; fill: none; }
 #graph .node.linking .halo { visibility: visible !important; stroke: var(--controller); stroke-width: 2.5; fill: none; }
 #graph .halo { fill: none; stroke: var(--ok); stroke-width: 2.5; }
@@ -402,8 +432,10 @@ dialog input { width: 100%; margin-top: 8px; }
   .layout { flex: 1 1 auto; min-height: 0; }
   .panel { display: flex; flex-direction: column; min-height: 0; }
 
-  /* Left: the canvas takes whatever the menus and summary leave */
-  .editor-area { flex: 1 1 auto; min-height: 0; }
+  /* Left: the canvas takes whatever the menus and summary leave, but
+     never less than the palette beside it needs, or the tools spill
+     out of the bottom of the panel */
+  .editor-area { flex: 1 1 auto; min-height: 470px; }
   #graph { height: auto; flex: 1 1 auto; min-height: 240px; }
   #props { max-height: 30vh; overflow-y: auto; }
 

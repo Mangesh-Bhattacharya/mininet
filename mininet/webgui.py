@@ -308,6 +308,86 @@ class LabSession( object ):
                      'loss': round( 100.0 * lost / sent, 1 ) if sent else 0,
                      'truncated': len( net.hosts ) > PING_HOST_LIMIT }
 
+    def connectivity( self, wait=0 ):
+        """What has actually come up: which switches reached the
+           controller, which links have both of their interfaces, and
+           which hosts are wired in. The GUI shows this as a tick or a
+           cross on each device after the network starts.
+
+           Nothing here is a guess - every answer comes from the live
+           network: sw.connected() asks Open vSwitch whether the
+           OpenFlow session is up, and link.status() asks each node
+           whether the interface exists."""
+        with self.lock:
+            net = self.requireNet()
+            if wait:
+                try:
+                    seconds = min( float( wait ), 30.0 )
+                except ( TypeError, ValueError ):
+                    raise GuiError( 'wait must be a number of seconds' )
+                # Switches take a moment to find the controller; give
+                # them that moment before reporting a failure
+                net.waitConnected( timeout=seconds )
+            nodes, links = [], []
+            controllers = list( net.controllers )
+            names = ', '.join( c.name for c in controllers )
+            allConnected = True
+            for sw in net.switches:
+                # A standalone bridge forwards on its own; saying it is
+                # "not connected" would be a lie, not a failure
+                standalone = ( not controllers or
+                               getattr( sw, 'failMode', '' ) == 'standalone' )
+                ok = bool( sw.connected() )
+                if standalone:
+                    detail = 'standalone switch: forwards without a controller'
+                elif ok:
+                    detail = 'OpenFlow session with %s is up' % names
+                else:
+                    detail = 'no OpenFlow session with %s' % names
+                nodes.append( { 'name': sw.name, 'ok': ok, 'detail': detail } )
+                if not standalone:
+                    allConnected = allConnected and ok
+                    links.append( { 'from': controllers[ 0 ].name,
+                                    'to': sw.name, 'ok': ok,
+                                    'detail': detail } )
+            for c in controllers:
+                nodes.append( {
+                    'name': c.name, 'ok': allConnected,
+                    'detail': ( 'every switch has an OpenFlow session'
+                                if allConnected
+                                else 'a switch has not connected' ) } )
+            for link in net.links:
+                status = link.status()          # "(OK OK)" or "(OK MISSING)"
+                ok = 'MISSING' not in status
+                links.append( {
+                    'from': link.intf1.node.name, 'to': link.intf2.node.name,
+                    'ok': ok,
+                    'detail': ( '%s <-> %s is up' % ( link.intf1, link.intf2 )
+                                if ok else 'interface missing: %s' % status ) } )
+            # A host with a working interface at the end of a broken
+            # link has not connected to anything, so its links count
+            cutOff = { name for link in links if not link[ 'ok' ]
+                       for name in ( link[ 'from' ], link[ 'to' ] ) }
+            for host in net.hosts:
+                missing = [ i.name for i in host.intfList()
+                            if i.name != 'lo' and i.status() != 'OK' ]
+                wired = [ i.name for i in host.intfList() if i.name != 'lo' ]
+                stranded = host.name in cutOff
+                nodes.append( {
+                    'name': host.name,
+                    'ok': bool( wired ) and not missing and not stranded,
+                    'detail': ( 'no interface: nothing is plugged in'
+                                if not wired else
+                                'interface missing: %s' % ', '.join( missing )
+                                if missing else
+                                'the link out of %s is down' % host.name
+                                if stranded else
+                                '%s up, address %s'
+                                % ( ', '.join( wired ), host.IP() or 'none' )
+                                ) } )
+            return { 'nodes': nodes, 'links': links,
+                     'ok': all( n[ 'ok' ] for n in nodes ) }
+
     def iperf( self, src, dst ):
         "Measure TCP bandwidth from src to dst"
         with self.lock:
@@ -571,6 +651,10 @@ ROUTES = {
     ( 'POST', 'start' ): lambda s, b: { 'startup': s.start() },
     ( 'POST', 'stop' ): lambda s, b: s.stop() or { 'ok': True },
     ( 'POST', 'pingall' ): lambda s, b: s.pingall(),
+    # POST, not GET: asking a switch whether it is connected runs
+    # ovs-vsctl, and waiting is a thing this does rather than reads
+    ( 'POST', 'connectivity' ): lambda s, b: s.connectivity(
+        b.get( 'wait', 0 ) ),
     ( 'POST', 'iperf' ): lambda s, b: s.iperf( b.get( 'src' ),
                                                b.get( 'dst' ) ),
     ( 'POST', 'exec' ): lambda s, b: s.execute( b.get( 'node' ),
