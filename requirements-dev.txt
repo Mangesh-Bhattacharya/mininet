@@ -4,5 +4,5 @@ pyflakes==3.4.0
 pycodestyle==2.14.0
 # Pinned: newer pylint releases add checks the upstream Mininet code
 # base doesn't pass yet
-pylint==2.15.7
+pylint==4.0.9
 pexpect==4.9.0
